@@ -480,8 +480,6 @@ void _UI_Refresh( int realtime )
 	}
 }
 
-#define MODSBUFSIZE (MAX_MODS * MAX_QPATH)
-
 /*
 ===============
 UI_LoadMods
@@ -489,14 +487,13 @@ UI_LoadMods
 */
 static void UI_LoadMods() {
 	int		numdirs;
-	char	dirlist[MODSBUFSIZE];
+	char	dirlist[2048];
 	char	*dirptr;
-	char	*descptr;
+  char  *descptr;
 	int		i;
 	int		dirlen;
 
 	uiInfo.modCount = 0;
-
 	numdirs = FS_GetFileList( "$modlist", "", dirlist, sizeof(dirlist) );
 	dirptr  = dirlist;
 	for( i = 0; i < numdirs; i++ ) {
@@ -510,6 +507,7 @@ static void UI_LoadMods() {
 			break;
 		}
 	}
+
 }
 
 /*
@@ -2147,7 +2145,7 @@ qboolean UI_ParseAnimFileSet( const char *animCFG, int *animFileIndex )
 	int			i;
 	char		*slash;
 
-	Q_strncpyz( strippedName, animCFG, sizeof(strippedName));
+	Q_strncpyz( strippedName, animCFG, sizeof(strippedName), qtrue);
 	slash = strrchr( strippedName, '/' );
 	if ( slash )
 	{
@@ -2258,25 +2256,25 @@ static qboolean UI_ParseColorData(char* buf, playerSpeciesInfo_t &species)
 	species.ColorCount = 0;
 	species.ColorMax = 16;
 	species.Color = (playerColor_t *)malloc(species.ColorMax * sizeof(playerColor_t));
-
+	
 	while ( p )
 	{
 		token = COM_ParseExt( &p, qtrue );	//looking for the shader
 		if ( token[0] == 0 )
 		{
 			COM_EndParseSession(  );
-			return (qboolean)(species.ColorCount != 0);
+			return species.ColorCount;
 		}
-
+		
 		if (species.ColorCount >= species.ColorMax)
 		{
 			species.ColorMax *= 2;
 			species.Color = (playerColor_t *)realloc(species.Color, species.ColorMax * sizeof(playerColor_t));
 		}
-
+		
 		memset(&species.Color[species.ColorCount], 0, sizeof(playerColor_t));
 
-		Q_strncpyz( species.Color[species.ColorCount].shader, token, MAX_QPATH );
+		Q_strncpyz( species.Color[species.ColorCount].shader, token, MAX_QPATH, qtrue );
 
 		token = COM_ParseExt( &p, qtrue );	//looking for action block {
 		if ( token[0] != '{' )
@@ -2309,7 +2307,7 @@ bIsImageFile
 builds path and scans for valid image extentions
 =================
 */
-static qboolean IsImageFile(const char* dirptr, const char* skinname, qboolean building)
+static bool bIsImageFile(const char* dirptr, const char* skinname, qboolean building)
 {
 	char fpath[MAX_QPATH];
 	int f;
@@ -2331,10 +2329,10 @@ static qboolean IsImageFile(const char* dirptr, const char* skinname, qboolean b
 	{
 		ui.FS_FCloseFile(f);
 		if ( building ) ui.R_RegisterShaderNoMip(fpath);
-		return qtrue;
+		return true;
 	}
 
-	return qfalse;
+	return false;
 }
 
 static void UI_FreeSpecies( playerSpeciesInfo_t *species )
@@ -2349,7 +2347,7 @@ static void UI_FreeSpecies( playerSpeciesInfo_t *species )
 void UI_FreeAllSpecies( void )
 {
 	int i;
-
+	
 	for (i = 0; i < uiInfo.playerSpeciesCount; i++)
 	{
 		UI_FreeSpecies(&uiInfo.playerSpecies[i]);
@@ -2370,12 +2368,12 @@ static void UI_BuildPlayerModel_List( qboolean inGameLoad )
 	int		dirlen;
 	int		i;
 	const int building = Cvar_VariableIntegerValue("com_buildscript");
-
+	
 	uiInfo.playerSpeciesCount = 0;
 	uiInfo.playerSpeciesIndex = 0;
 	uiInfo.playerSpeciesMax = 8;
 	uiInfo.playerSpecies = (playerSpeciesInfo_t *)malloc(uiInfo.playerSpeciesMax * sizeof(playerSpeciesInfo_t));
-
+	
 	// iterate directory of all player models
 	numdirs = ui.FS_GetFileList("models/players", "/", dirlist, 2048 );
 	dirptr  = dirlist;
@@ -2415,13 +2413,13 @@ static void UI_BuildPlayerModel_List( qboolean inGameLoad )
 			}
 			species = &uiInfo.playerSpecies[uiInfo.playerSpeciesCount];
 			memset(species, 0, sizeof(playerSpeciesInfo_t));
-			Q_strncpyz( species->Name, dirptr, MAX_QPATH );
+			Q_strncpyz( species->Name, dirptr, MAX_QPATH, qtrue );
 
 			if (!UI_ParseColorData(buffer.data(),*species))
 			{
 				ui.Printf( "UI_BuildPlayerModel_List: Errors parsing '%s'\n", fpath );
 			}
-
+			
 			species->SkinHeadMax = 8;
 			species->SkinTorsoMax = 8;
 			species->SkinLegMax = 8;
@@ -2452,7 +2450,7 @@ static void UI_BuildPlayerModel_List( qboolean inGameLoad )
 				filelen = strlen(fileptr);
 				COM_StripExtension(fileptr,skinname, sizeof(skinname));
 
-				if (IsImageFile(dirptr, skinname, (qboolean)(building != 0)))
+				if (bIsImageFile(dirptr, skinname, building))
 				{ //if it exists
 					if (Q_stricmpn(skinname,"head_",5) == 0)
 					{
@@ -2461,7 +2459,7 @@ static void UI_BuildPlayerModel_List( qboolean inGameLoad )
 							species->SkinHeadMax *= 2;
 							species->SkinHead = (skinName_t *)realloc(species->SkinHead, species->SkinHeadMax*sizeof(skinName_t));
 						}
-						Q_strncpyz(species->SkinHead[species->SkinHeadCount++].name, skinname, SKIN_LENGTH);
+						Q_strncpyz(species->SkinHead[species->SkinHeadCount++].name, skinname, SKIN_LENGTH, qtrue);
 						iSkinParts |= 1<<0;
 					} else
 					if (Q_stricmpn(skinname,"torso_",6) == 0)
@@ -2471,7 +2469,7 @@ static void UI_BuildPlayerModel_List( qboolean inGameLoad )
 							species->SkinTorsoMax *= 2;
 							species->SkinTorso = (skinName_t *)realloc(species->SkinTorso, species->SkinTorsoMax*sizeof(skinName_t));
 						}
-						Q_strncpyz(species->SkinTorso[species->SkinTorsoCount++].name, skinname, SKIN_LENGTH);
+						Q_strncpyz(species->SkinTorso[species->SkinTorsoCount++].name, skinname, SKIN_LENGTH, qtrue);
 						iSkinParts |= 1<<1;
 					} else
 					if (Q_stricmpn(skinname,"lower_",6) == 0)
@@ -2481,7 +2479,7 @@ static void UI_BuildPlayerModel_List( qboolean inGameLoad )
 							species->SkinLegMax *= 2;
 							species->SkinLeg = (skinName_t *)realloc(species->SkinLeg, species->SkinLegMax*sizeof(skinName_t));
 						}
-						Q_strncpyz(species->SkinLeg[species->SkinLegCount++].name, skinname, SKIN_LENGTH);
+						Q_strncpyz(species->SkinLeg[species->SkinLegCount++].name, skinname, SKIN_LENGTH, qtrue);
 						iSkinParts |= 1<<2;
 					}
 

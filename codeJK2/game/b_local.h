@@ -155,8 +155,15 @@ extern void NPC_DeleteFromFormation (gentity_t *self);
 #define NUM_POSITIONS 30
 
 //NPC spawnflags
+#define SFB_SMALLHULL	1
+
 #define SFB_RIFLEMAN	2
+#define SFB_OLDBORG		2//Borg
 #define SFB_PHASER		4
+#define SFB_GUN			4//Borg
+#define	SFB_TRICORDER	8
+#define	SFB_TASER		8//Borg
+#define	SFB_DRILL		16//Borg
 
 #define	SFB_CINEMATIC	32
 #define	SFB_NOTSOLID	64
@@ -303,31 +310,33 @@ extern qboolean NPC_SetCombatPoint( int combatPointID );
 
 #define	MAX_COMBAT_POINT_CHECK	32
 
-qboolean NPC_ValidEnemy( gentity_t *ent );
-qboolean NPC_CheckEnemyExt( qboolean checkAlerts = qfalse );
-qboolean NPC_FindPlayer( void );
-qboolean NPC_CheckCanAttackExt( void );
+extern int NPC_ValidEnemy( gentity_t *ent );
+extern int NPC_CheckEnemyExt( qboolean checkAlerts = qfalse );
+extern qboolean NPC_FindPlayer( void );
+extern qboolean NPC_CheckCanAttackExt( void );
 
-int NPC_CheckAlertEvents( qboolean checkSight, qboolean checkSound, int ignoreAlert = -1, qboolean mustHaveOwner = qfalse, int minAlertLevel = AEL_MINOR );
-qboolean NPC_CheckForDanger( int alertEvent );
-void G_AlertTeam( gentity_t *victim, gentity_t *attacker, float radius, float soundDist );
+extern int NPC_CheckAlertEvents( qboolean checkSight, qboolean checkSound, int ignoreAlert = -1, qboolean mustHaveOwner = qfalse, int minAlertLevel = AEL_MINOR );
+extern qboolean NPC_CheckForDanger( int alertEvent );
+extern void G_AlertTeam( gentity_t *victim, gentity_t *attacker, float radius, float soundDist );
 
-int NPC_FindSquadPoint( vec3_t position );
+extern int NPC_FindSquadPoint( vec3_t position );
 
-void ClearPlayerAlertEvents( void );
+extern void ClearPlayerAlertEvents( void );
 
-qboolean G_BoundsOverlap(const vec3_t mins1, const vec3_t maxs1, const vec3_t mins2, const vec3_t maxs2);
-qboolean NAV_HitNavGoal( vec3_t point, vec3_t mins, vec3_t maxs, vec3_t dest, int radius, qboolean flying );
+extern qboolean G_BoundsOverlap(const vec3_t mins1, const vec3_t maxs1, const vec3_t mins2, const vec3_t maxs2);
+extern qboolean NAV_HitNavGoal( vec3_t point, vec3_t mins, vec3_t maxs, vec3_t dest, int radius, qboolean flying );
 
-void NPC_SetMoveGoal( gentity_t *ent, vec3_t point, int radius, qboolean isNavGoal = qfalse, int combatPoint = -1, gentity_t *targetEnt = NULL );
+extern void NPC_SetMoveGoal( gentity_t *ent, vec3_t point, int radius, qboolean isNavGoal = qfalse, int combatPoint = -1, gentity_t *targetEnt = NULL );
 
-qboolean NAV_ClearPathToPoint(gentity_t *self, vec3_t pmins, vec3_t pmaxs, vec3_t point, int clipmask, int okToHitEnt );
-void NPC_ApplyWeaponFireDelay(void);
+extern qboolean NAV_ClearPathToPoint(gentity_t *self, vec3_t pmins, vec3_t pmaxs, vec3_t point, int clipmask, int okToHitEnt );
+extern void NPC_ApplyWeaponFireDelay(void);
 
 //NPC_FaceXXX suite
-qboolean NPC_FacePosition( vec3_t position, qboolean doPitch = qtrue );
-qboolean NPC_FaceEntity( gentity_t *ent, qboolean doPitch = qtrue );
-qboolean NPC_FaceEnemy( qboolean doPitch = qtrue );
+extern qboolean NPC_FacePosition( vec3_t position, qboolean doPitch = qtrue );
+extern qboolean NPC_FaceEntity( gentity_t *ent, qboolean doPitch = qtrue );
+extern qboolean NPC_FaceEnemy( qboolean doPitch = qtrue );
+
+extern unsigned char G_AddBoltOn( gentity_t *NPC, const char *boltOnName );
 
 //Skill level cvar
 extern cvar_t	*g_spskill;

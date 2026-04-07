@@ -91,7 +91,7 @@ qboolean PInUse(unsigned int entNum)
 {
 	assert(entNum>=0);
 	assert(entNum<MAX_GENTITIES);
-	return (qboolean)((g_entityInUseBits[entNum/32]&(((unsigned int)1)<<(entNum&0x1f)))!=0);
+	return((g_entityInUseBits[entNum/32]&(((unsigned int)1)<<(entNum&0x1f)))!=0);
 }
 
 /*qboolean PInUse2(gentity_t *ent)
@@ -209,8 +209,6 @@ cvar_t	*g_npcdebug;
 cvar_t	*g_navSafetyChecks;
 
 cvar_t	*g_broadsword;
-
-cvar_t	*g_allowBunnyhopping;
 
 qboolean	stop_icarus = qfalse;
 
@@ -684,8 +682,6 @@ void G_InitCvars( void ) {
 
 	g_broadsword = gi.cvar( "broadsword", "1", 0);
 
-	g_allowBunnyhopping = gi.cvar( "g_allowBunnyhopping", "0", 0 );
-
 	gi.cvar( "tier_storyinfo", "0", CVAR_ROM|CVAR_SAVEGAME|CVAR_NORESTART);
 	gi.cvar( "tiers_complete", "", CVAR_ROM|CVAR_SAVEGAME|CVAR_NORESTART);
 
@@ -713,7 +709,7 @@ void InitGame(  const char *mapname, const char *spawntarget, int checkSum, cons
 	//rww - default this to 0, we will auto-set it to 1 if we run into a terrain ent
 	gi.cvar_set("RMG", "0");
 
-	g_bCollidableRoffs = qfalse;
+	g_bCollidableRoffs = false;
 
 	giMapChecksum = checkSum;
 	g_eSavedGameJustLoaded = eSavedGameJustLoaded;

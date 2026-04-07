@@ -1,0 +1,212 @@
+name: build
+
+permissions:
+  contents: write
+
+on:
+  workflow_dispatch:
+
+jobs:
+  windows:
+    name: Windows ${{ matrix.arch }}
+    runs-on: windows-2022
+    strategy:
+      matrix:
+        include:
+          - arch: x86
+            platform: Win32
+          - arch: x86_64
+            platform: x64
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: microsoft/setup-msbuild@v2
+
+      - name: Configure CMake
+        run: |
+          cmake -B build -A ${{ matrix.platform }} `
+            -DCMAKE_INSTALL_PREFIX=build/install `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DBuildMPEngine=OFF `
+            -DBuildMPDed=OFF `
+            -DBuildMPGame=OFF `
+            -DBuildMPUI=OFF `
+            -DBuildMPCGame=ON `
+            -DBuildSPEngine=OFF `
+            -DBuildSPGame=OFF `
+            -DBuildSPRdVanilla=OFF `
+            -DBuildJK2SPEngine=OFF `
+            -DBuildJK2SPGame=OFF `
+            -DBuildJK2SPRdVanilla=OFF
+
+      - name: Build
+        run: cmake --build build --config Release -j $env:NUMBER_OF_PROCESSORS
+
+      - name: Package
+        shell: bash
+        run: |
+          mkdir -p staging/TarasciiMadness
+          # cgame DLL — find whichever arch was built
+          find build -name "cgame*.dll" -path "*/Release/*" -exec cp {} staging/TarasciiMadness/ \;
+          # Assets PK3
+          cp build/codemp/tarascii_assets.pk3 staging/TarasciiMadness/
+          # Create the cgame PK3 (zip the DLL)
+          cd staging/TarasciiMadness
+          cmake -E tar cf zz_tarascii_cgame.pk3 --format=zip cgame*.dll
+          rm -f cgame*.dll cgame*.pdb
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TarasciiMadness-windows-${{ matrix.arch }}
+          path: staging
+          if-no-files-found: error
+
+  linux:
+    name: Linux ${{ matrix.arch }}
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86, x86_64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          if [ "${{ matrix.arch }}" = "x86" ]; then
+            sudo dpkg --add-architecture i386
+            sudo apt-get -qq update
+            sudo apt-get -y install gcc-multilib g++-multilib libjpeg-dev:i386 libpng-dev:i386 zlib1g-dev:i386 libsdl2-dev:i386
+          else
+            sudo apt-get -qq update
+            sudo apt-get -y install libjpeg-dev libpng-dev zlib1g-dev libsdl2-dev
+          fi
+
+      - name: Configure CMake
+        run: |
+          OPTIONS=(
+            -DCMAKE_BUILD_TYPE=Release
+            -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/install
+            -DUseInternalLibs=OFF
+            -DBuildMPEngine=OFF
+            -DBuildMPDed=OFF
+            -DBuildMPGame=OFF
+            -DBuildMPUI=OFF
+            -DBuildMPCGame=ON
+            -DBuildSPEngine=OFF
+            -DBuildSPGame=OFF
+            -DBuildSPRdVanilla=OFF
+            -DBuildJK2SPEngine=OFF
+            -DBuildJK2SPGame=OFF
+            -DBuildJK2SPRdVanilla=OFF
+          )
+          if [ "${{ matrix.arch }}" = "x86" ]; then
+            OPTIONS+=(-DCMAKE_TOOLCHAIN_FILE=CMakeModules/Toolchains/linux-i686.cmake)
+          fi
+          cmake -B build "${OPTIONS[@]}"
+
+      - name: Build
+        run: cmake --build build -j $(nproc)
+
+      - name: Package
+        run: |
+          mkdir -p staging/TarasciiMadness
+          find build -name "cgame*.so" -exec cp {} staging/TarasciiMadness/ \;
+          cp build/codemp/tarascii_assets.pk3 staging/TarasciiMadness/
+          cd staging/TarasciiMadness
+          cmake -E tar cf zz_tarascii_cgame.pk3 --format=zip cgame*.so
+          rm -f cgame*.so
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TarasciiMadness-linux-${{ matrix.arch }}
+          path: staging
+          if-no-files-found: error
+
+  macos:
+    name: macOS ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: macos-15-intel
+            cmake_extra: ""
+          - arch: arm64
+            runner: macos-15
+            cmake_extra: "-DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_SYSTEM_PROCESSOR=arm64"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: brew install sdl2
+
+      - name: Configure CMake
+        run: |
+          cmake -B build ${{ matrix.cmake_extra }} \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/install \
+            -DUseInternalLibs=OFF \
+            -DBuildMPEngine=OFF \
+            -DBuildMPDed=OFF \
+            -DBuildMPGame=OFF \
+            -DBuildMPUI=OFF \
+            -DBuildMPCGame=ON \
+            -DBuildSPEngine=OFF \
+            -DBuildSPGame=OFF \
+            -DBuildSPRdVanilla=OFF \
+            -DBuildJK2SPEngine=OFF \
+            -DBuildJK2SPGame=OFF \
+            -DBuildJK2SPRdVanilla=OFF
+
+      - name: Build
+        run: cmake --build build -j $(sysctl -n hw.ncpu)
+
+      - name: Package
+        run: |
+          mkdir -p staging/TarasciiMadness
+          find build -name "cgame*.dylib" -exec cp {} staging/TarasciiMadness/ \;
+          cp build/codemp/tarascii_assets.pk3 staging/TarasciiMadness/
+          cd staging/TarasciiMadness
+          cmake -E tar cf zz_tarascii_cgame.pk3 --format=zip cgame*.dylib
+          rm -f cgame*.dylib
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TarasciiMadness-macos-${{ matrix.arch }}
+          path: staging
+          if-no-files-found: error
+
+  publish:
+    name: Publish Release
+    needs: [windows, linux, macos]
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+
+      - name: Create archives
+        run: |
+          cd TarasciiMadness-windows-x86    && zip -r ../TarasciiMadness-windows-x86.zip    TarasciiMadness && cd ..
+          cd TarasciiMadness-windows-x86_64 && zip -r ../TarasciiMadness-windows-x86_64.zip TarasciiMadness && cd ..
+          cd TarasciiMadness-linux-x86      && tar -czvf ../TarasciiMadness-linux-x86.tar.gz    TarasciiMadness && cd ..
+          cd TarasciiMadness-linux-x86_64   && tar -czvf ../TarasciiMadness-linux-x86_64.tar.gz TarasciiMadness && cd ..
+          cd TarasciiMadness-macos-x86_64   && tar -czvf ../TarasciiMadness-macos-x86_64.tar.gz TarasciiMadness && cd ..
+          cd TarasciiMadness-macos-arm64    && tar -czvf ../TarasciiMadness-macos-arm64.tar.gz   TarasciiMadness && cd ..
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.4.${{ github.run_number }}
+          name: TarasciiMadness v1.4.${{ github.run_number }}
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            TarasciiMadness-windows-x86.zip
+            TarasciiMadness-windows-x86_64.zip
+            TarasciiMadness-linux-x86.tar.gz
+            TarasciiMadness-linux-x86_64.tar.gz
+            TarasciiMadness-macos-x86_64.tar.gz
+            TarasciiMadness-macos-arm64.tar.gz

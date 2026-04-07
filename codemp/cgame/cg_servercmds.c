@@ -37,7 +37,7 @@ CG_ParseScores
 
 =================
 */
-#define SCORE_OFFSET (14)
+#define SCORE_OFFSET (4) // TarasciiMadness: reduced to clientNum, score, ping, time
 static void CG_ParseScores( void ) {
 	int i, powerups, readScores;
 
@@ -62,16 +62,16 @@ static void CG_ParseScores( void ) {
 		cg.scores[i].score				= atoi( CG_Argv( i*SCORE_OFFSET +  5 ) );
 		cg.scores[i].ping				= atoi( CG_Argv( i*SCORE_OFFSET +  6 ) );
 		cg.scores[i].time				= atoi( CG_Argv( i*SCORE_OFFSET +  7 ) );
-		cg.scores[i].scoreFlags			= atoi( CG_Argv( i*SCORE_OFFSET +  8 ) );
-		powerups						= atoi( CG_Argv( i*SCORE_OFFSET +  9 ) );
-		cg.scores[i].accuracy			= atoi( CG_Argv( i*SCORE_OFFSET + 10 ) );
-		cg.scores[i].impressiveCount	= atoi( CG_Argv( i*SCORE_OFFSET + 11 ) );
-		cg.scores[i].excellentCount		= atoi( CG_Argv( i*SCORE_OFFSET + 12 ) );
-		cg.scores[i].gauntletCount		= atoi( CG_Argv( i*SCORE_OFFSET + 13 ) );
-		cg.scores[i].defendCount		= atoi( CG_Argv( i*SCORE_OFFSET + 14 ) );
-		cg.scores[i].assistCount		= atoi( CG_Argv( i*SCORE_OFFSET + 15 ) );
-		cg.scores[i].perfect			= atoi( CG_Argv( i*SCORE_OFFSET + 16 ) );
-		cg.scores[i].captures			= atoi( CG_Argv( i*SCORE_OFFSET + 17 ) );
+		cg.scores[i].scoreFlags			= 0;
+		powerups						= 0;
+		cg.scores[i].accuracy			= 0;
+		cg.scores[i].impressiveCount	= 0;
+		cg.scores[i].excellentCount		= 0;
+		cg.scores[i].gauntletCount		= 0;
+		cg.scores[i].defendCount		= 0;
+		cg.scores[i].assistCount		= 0;
+		cg.scores[i].perfect			= 0;
+		cg.scores[i].captures			= 0;
 
 		if ( cg.scores[i].client < 0 || cg.scores[i].client >= MAX_CLIENTS )
 			cg.scores[i].client = 0;
@@ -1593,6 +1593,57 @@ int svcmdcmp( const void *a, const void *b ) {
 	return Q_stricmp( (const char *)a, ((serverCommand_t*)b)->cmd );
 }
 
+/* This array MUST be sorted correctly by alphabetical name field */
+static char *registeredAdminCmds[32];
+static int numRegisteredAdminCmds = 0;
+
+static void CG_RegisterAdminCmds_f( void ) {
+	int argc = trap->Cmd_Argc();
+	// Remove any previously registered commands
+	for (int i = 0; i < numRegisteredAdminCmds; i++) {
+		trap->RemoveCommand(registeredAdminCmds[i]);
+		free(registeredAdminCmds[i]);
+	}
+	numRegisteredAdminCmds = 0;
+	// Register new ones (argv 1..N are command names)
+	for (int i = 1; i < argc && numRegisteredAdminCmds < 32; i++) {
+		const char *cmd = CG_Argv(i);
+		trap->AddCommand(cmd);
+		registeredAdminCmds[numRegisteredAdminCmds] = strdup(cmd);
+		numRegisteredAdminCmds++;
+	}
+	trap->Print("Admin commands registered for autocomplete.\n");
+}
+
+vmCvar_t tm_reloadSpeed = { .integer = 1500 }; // default 1500, synced from server
+vmCvar_t tm_barrelModelMode; // synced from server for HUD display
+
+static void CG_SyncCvar_f( void ) {
+	// Server sends: tmSyncCvar <cvarName> <value>
+	if (trap->Cmd_Argc() >= 3) {
+		const char *name = CG_Argv(1);
+		const char *value = CG_Argv(2);
+		int intValue = atoi(value);
+
+		// Update the vmCvar_t directly so bg_pmove.c client prediction works
+		if (!strcmp(name, "tm_reloadSpeed")) {
+			tm_reloadSpeed.integer = intValue;
+		}
+		if (!strcmp(name, "tm_barrelModelMode")) {
+			tm_barrelModelMode.integer = intValue;
+		}
+	}
+}
+
+static void CG_RemoveAdminCmds_f( void ) {
+	for (int i = 0; i < numRegisteredAdminCmds; i++) {
+		trap->RemoveCommand(registeredAdminCmds[i]);
+		free(registeredAdminCmds[i]);
+	}
+	numRegisteredAdminCmds = 0;
+	trap->Print("Admin commands removed from autocomplete.\n");
+}
+
 static serverCommand_t	commands[] = {
 	{ "chat",				CG_Chat_f },
 	{ "clientLevelShot",	CG_ClientLevelShot_f },
@@ -1618,6 +1669,9 @@ static serverCommand_t	commands[] = {
 	{ "sxd",				CG_ParseSiegeExtendedData },
 	{ "tchat",				CG_Chat_f },
 	{ "tinfo",				CG_ParseTeamInfo },
+	{ "tmRegisterAdminCmds",	CG_RegisterAdminCmds_f },
+	{ "tmRemoveAdminCmds",		CG_RemoveAdminCmds_f },
+	{ "tmSyncCvar",				CG_SyncCvar_f },
 };
 
 static const size_t numCommands = ARRAY_LEN( commands );
@@ -1639,7 +1693,7 @@ static void CG_ServerCommand( void ) {
 		return;
 	}
 
-	command = (serverCommand_t *)Q_LinearSearch( cmd, commands, numCommands, sizeof( commands[0] ), svcmdcmp );
+	command = (serverCommand_t *)bsearch( cmd, commands, numCommands, sizeof( commands[0] ), svcmdcmp );
 
 	if ( command ) {
 		command->func();

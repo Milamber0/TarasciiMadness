@@ -713,10 +713,6 @@ typedef struct cgameImport_s {
 	void			(*G2API_CleanEntAttachments)			( void );
 	qboolean		(*G2API_OverrideServer)					( void *serverInstance );
 	void			(*G2API_GetSurfaceName)					( void *ghoul2, int surfNumber, int modelIndex, char *fillBuf );
-
-	struct {
-		float			(*R_Font_StrLenPixels)					( const char *text, const int iFontIndex, const float scale );
-	} ext;
 } cgameImport_t;
 
 typedef struct cgameExport_s {

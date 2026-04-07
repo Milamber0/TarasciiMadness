@@ -44,10 +44,6 @@ void WP_Melee( gentity_t *ent )
 
 	if ( tr.entityNum >= ENTITYNUM_WORLD )
 	{
-		if ( tr.entityNum == ENTITYNUM_WORLD )
-		{
-			G_PlayEffect( G_EffectIndex( "melee/punch_impact" ), tr.endpos, forwardVec );
-		}
 		return;
 	}
 

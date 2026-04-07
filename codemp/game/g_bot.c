@@ -451,7 +451,7 @@ void G_AddRandomBot( int team ) {
 			num++;
 		}
 	}
-	num = Q_flrand(0.0f, 1.0f) * num;
+	num = random() * num;
 	for ( n = 0; n < level.bots.num ; n++ ) {
 		value = Info_ValueForKey( level.bots.infos[n], "name" );
 		//

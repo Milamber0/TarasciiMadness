@@ -32,10 +32,10 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #define SB_TOP				(SB_HEADER+32)
 
 // Where the status bar starts, so we don't overwrite it
-#define SB_STATUSBAR		420
+#define SB_STATUSBAR		450
 
 #define SB_NORMAL_HEIGHT	25
-#define SB_INTER_HEIGHT		15 // interleaved height
+#define SB_INTER_HEIGHT		10 // interleaved height
 
 #define SB_MAXCLIENTS_NORMAL  ((SB_STATUSBAR - SB_TOP) / SB_NORMAL_HEIGHT)
 #define SB_MAXCLIENTS_INTER   ((SB_STATUSBAR - SB_TOP) / SB_INTER_HEIGHT - 1)
@@ -85,7 +85,7 @@ static void CG_DrawClientScore( int y, score_t *score, float *color, float fade,
 	//vec3_t	headAngles;
 	clientInfo_t	*ci;
 	int				iconx = SB_BOTICON_X + (SB_RATING_WIDTH / 2);
-	float			scale = largeFormat ? 1.0f : 0.75f,
+	float			scale = largeFormat ? 1.0f : 0.6f,
 					iconSize = largeFormat ? SB_NORMAL_HEIGHT : SB_INTER_HEIGHT;
 
 	if ( score->client < 0 || score->client >= cgs.maxclients ) {
@@ -327,6 +327,7 @@ qboolean CG_DrawOldScoreboard( void ) {
 	int maxClients, realMaxClients;
 	int lineHeight;
 	int topBorderSize, bottomBorderSize;
+	int teamGap;
 
 	// don't draw amuthing if the menu or console is up
 	if ( cl_paused.integer ) {
@@ -489,13 +490,15 @@ qboolean CG_DrawOldScoreboard( void ) {
 	if ( cg.numScores > SB_MAXCLIENTS_NORMAL ) {
 		maxClients = SB_MAXCLIENTS_INTER;
 		lineHeight = SB_INTER_HEIGHT;
-		topBorderSize = 8;
-		bottomBorderSize = 16;
+		topBorderSize = 2;
+		bottomBorderSize = 6;
+		teamGap = 8;
 	} else {
 		maxClients = SB_MAXCLIENTS_NORMAL;
 		lineHeight = SB_NORMAL_HEIGHT;
 		topBorderSize = 8;
 		bottomBorderSize = 8;
+		teamGap = BIGCHAR_HEIGHT;
 	}
 	realMaxClients = maxClients;
 
@@ -519,81 +522,60 @@ qboolean CG_DrawOldScoreboard( void ) {
 			int team1MaxCl = CG_GetTeamCount(TEAM_RED, maxClients);
 			int team2MaxCl = CG_GetTeamCount(TEAM_BLUE, maxClients);
 
-			if (team1MaxCl > 10 && (team1MaxCl+team2MaxCl) > maxClients)
-			{
-				team1MaxCl -= team2MaxCl;
-				//subtract as many as you have to down to 10, once we get there
-				//we just set it to 10
-
-				if (team1MaxCl < 10)
-				{
-					team1MaxCl = 10;
-				}
+			if ((team1MaxCl + team2MaxCl) > maxClients) {
+				// smaller team gets all its entries, larger gets the rest
+				if (team1MaxCl >= team2MaxCl)
+					team1MaxCl = maxClients - team2MaxCl;
+				else
+					team2MaxCl = maxClients - team1MaxCl;
 			}
-
-			team2MaxCl = (maxClients-team1MaxCl); //team2 can display however many is left over after team1's display
 
 			n1 = CG_TeamScoreboard( y, TEAM_RED, fade, team1MaxCl, lineHeight, qtrue );
 			CG_DrawTeamBackground( SB_SCORELINE_X - 5, y - topBorderSize, 640 - SB_SCORELINE_X * 2 + 10, n1 * lineHeight + bottomBorderSize, 0.33f, TEAM_RED );
 			CG_TeamScoreboard( y, TEAM_RED, fade, team1MaxCl, lineHeight, qfalse );
-			y += (n1 * lineHeight) + BIGCHAR_HEIGHT;
-
-			//maxClients -= n1;
+			y += (n1 * lineHeight) + teamGap;
 
 			n2 = CG_TeamScoreboard( y, TEAM_BLUE, fade, team2MaxCl, lineHeight, qtrue );
 			CG_DrawTeamBackground( SB_SCORELINE_X - 5, y - topBorderSize, 640 - SB_SCORELINE_X * 2 + 10, n2 * lineHeight + bottomBorderSize, 0.33f, TEAM_BLUE );
 			CG_TeamScoreboard( y, TEAM_BLUE, fade, team2MaxCl, lineHeight, qfalse );
-			y += (n2 * lineHeight) + BIGCHAR_HEIGHT;
-
-			//maxClients -= n2;
+			y += (n2 * lineHeight) + teamGap;
 
 			maxClients -= (team1MaxCl+team2MaxCl);
 		} else {
 			int team1MaxCl = CG_GetTeamCount(TEAM_BLUE, maxClients);
 			int team2MaxCl = CG_GetTeamCount(TEAM_RED, maxClients);
 
-			if (team1MaxCl > 10 && (team1MaxCl+team2MaxCl) > maxClients)
-			{
-				team1MaxCl -= team2MaxCl;
-				//subtract as many as you have to down to 10, once we get there
-				//we just set it to 10
-
-				if (team1MaxCl < 10)
-				{
-					team1MaxCl = 10;
-				}
+			if ((team1MaxCl + team2MaxCl) > maxClients) {
+				if (team1MaxCl >= team2MaxCl)
+					team1MaxCl = maxClients - team2MaxCl;
+				else
+					team2MaxCl = maxClients - team1MaxCl;
 			}
-
-			team2MaxCl = (maxClients-team1MaxCl); //team2 can display however many is left over after team1's display
 
 			n1 = CG_TeamScoreboard( y, TEAM_BLUE, fade, team1MaxCl, lineHeight, qtrue );
 			CG_DrawTeamBackground( SB_SCORELINE_X - 5, y - topBorderSize, 640 - SB_SCORELINE_X * 2 + 10, n1 * lineHeight + bottomBorderSize, 0.33f, TEAM_BLUE );
 			CG_TeamScoreboard( y, TEAM_BLUE, fade, team1MaxCl, lineHeight, qfalse );
-			y += (n1 * lineHeight) + BIGCHAR_HEIGHT;
-
-			//maxClients -= n1;
+			y += (n1 * lineHeight) + teamGap;
 
 			n2 = CG_TeamScoreboard( y, TEAM_RED, fade, team2MaxCl, lineHeight, qtrue );
 			CG_DrawTeamBackground( SB_SCORELINE_X - 5, y - topBorderSize, 640 - SB_SCORELINE_X * 2 + 10, n2 * lineHeight + bottomBorderSize, 0.33f, TEAM_RED );
 			CG_TeamScoreboard( y, TEAM_RED, fade, team2MaxCl, lineHeight, qfalse );
-			y += (n2 * lineHeight) + BIGCHAR_HEIGHT;
-
-			//maxClients -= n2;
+			y += (n2 * lineHeight) + teamGap;
 
 			maxClients -= (team1MaxCl+team2MaxCl);
 		}
 		maxClients = realMaxClients;
 		n1 = CG_TeamScoreboard( y, TEAM_SPECTATOR, fade, maxClients, lineHeight, qfalse );
-		y += (n1 * lineHeight) + BIGCHAR_HEIGHT;
+		y += (n1 * lineHeight) + teamGap;
 
 	} else {
 		//
 		// free for all scoreboard
 		//
 		n1 = CG_TeamScoreboard( y, TEAM_FREE, fade, maxClients, lineHeight, qfalse );
-		y += (n1 * lineHeight) + BIGCHAR_HEIGHT;
+		y += (n1 * lineHeight) + teamGap;
 		n2 = CG_TeamScoreboard( y, TEAM_SPECTATOR, fade, maxClients - n1, lineHeight, qfalse );
-		y += (n2 * lineHeight) + BIGCHAR_HEIGHT;
+		y += (n2 * lineHeight) + teamGap;
 	}
 
 	if (!localClient) {

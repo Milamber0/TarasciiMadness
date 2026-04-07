@@ -1186,12 +1186,12 @@ CL_InitKeyCommands
 */
 void CL_InitKeyCommands( void ) {
 	// register our functions
-	Cmd_AddCommand( "bind", Key_Bind_f, "Bind a key to a console command" );
+	Cmd_AddCommand( "bind", Key_Bind_f );
 	Cmd_SetCommandCompletionFunc( "bind", Key_CompleteBind );
-	Cmd_AddCommand( "unbind", Key_Unbind_f, "Unbind a key" );
+	Cmd_AddCommand( "unbind", Key_Unbind_f );
 	Cmd_SetCommandCompletionFunc( "unbind", Key_CompleteUnbind );
-	Cmd_AddCommand( "unbindall", Key_Unbindall_f, "Delete all key bindings" );
-	Cmd_AddCommand( "bindlist", Key_Bindlist_f, "Show all bindings in the console" );
+	Cmd_AddCommand( "unbindall", Key_Unbindall_f );
+	Cmd_AddCommand( "bindlist", Key_Bindlist_f );
 }
 
 /*
@@ -1314,7 +1314,7 @@ void CL_KeyDownEvent( int key, unsigned time )
 	}
 
 	// console key is hardcoded, so the user can never unbind it
-	if ( key == A_CONSOLE || (kg.keys[A_SHIFT].down && key == A_ESCAPE) ) {
+	if ( key == 124 || key == A_CONSOLE || (kg.keys[A_SHIFT].down && key == A_ESCAPE) ) {
 		Con_ToggleConsole_f();
 		Key_ClearStates ();
 		return;
@@ -1447,6 +1447,10 @@ Normal keyboard characters, already shifted / capslocked / etc
 ===================
 */
 void CL_CharEvent( int key ) {
+	// the console key should never be used as a char
+	if ( key == '`' || key == '~' )
+		return;
+
 	// delete is not a printable character and is otherwise handled by Field_KeyDownEvent
 	if ( key == 127 )
 		return;

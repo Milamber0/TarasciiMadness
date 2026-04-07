@@ -121,23 +121,21 @@ void SFxHelper::AddFxToScene( refEntity_t *ent )
 }
 
 //------------------------------------------------------
-int SFxHelper::RegisterShader( const gsl::cstring_view& shader )
+int SFxHelper::RegisterShader( const char *shader )
 {
-	// TODO: it would be nice to change the ABI here to allow for passing of string views
-	return cgi_R_RegisterShader( std::string( shader.begin(), shader.end() ).c_str() );
+	return cgi_R_RegisterShader( shader );
 }
 
 //------------------------------------------------------
-int SFxHelper::RegisterSound( const gsl::cstring_view& sound )
+int SFxHelper::RegisterSound( const char *sound )
 {
-	// TODO: it would be nice to change the ABI here to allow for passing of string views
-	return cgi_S_RegisterSound( std::string( sound.begin(), sound.end() ).c_str() );
+	return cgi_S_RegisterSound( sound );
 }
 
 //------------------------------------------------------
-int SFxHelper::RegisterModel( const gsl::cstring_view& model )
+int SFxHelper::RegisterModel( const char *model )
 {
-	return cgi_R_RegisterModel( std::string( model.begin(), model.end() ).c_str() );
+	return cgi_R_RegisterModel( model );
 }
 
 //------------------------------------------------------

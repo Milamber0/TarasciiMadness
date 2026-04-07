@@ -656,7 +656,7 @@ Ghoul2 Insert End
 			}
 		}
 
-		val += Q_flrand(0.0f, 1.0f) * 0.5f;
+		val += random() * 0.5f;
 
 		VectorCopy(flashorigin, fxSArgs.origin);
 		VectorClear(fxSArgs.vel);
@@ -665,13 +665,13 @@ Ghoul2 Insert End
 		fxSArgs.dscale = 0.0f;
 		fxSArgs.sAlpha = 0.7f;
 		fxSArgs.eAlpha = 0.7f;
-		fxSArgs.rotation = Q_flrand(0.0f, 1.0f)*360;
+		fxSArgs.rotation = random()*360;
 		fxSArgs.bounce = 0.0f;
 		fxSArgs.life = 1.0f;
 		fxSArgs.shader = shader;
 		fxSArgs.flags = 0x08000000;
 
-		//FX_AddSprite( flash.origin, NULL, NULL, 3.0f * val, 0.0f, 0.7f, 0.7f, WHITE, WHITE, Q_flrand(0.0f, 1.0f) * 360, 0.0f, 1.0f, shader, FX_USE_ALPHA );
+		//FX_AddSprite( flash.origin, NULL, NULL, 3.0f * val, 0.0f, 0.7f, 0.7f, WHITE, WHITE, random() * 360, 0.0f, 1.0f, shader, FX_USE_ALPHA );
 		trap->FX_AddSprite(&fxSArgs);
 	}
 
@@ -1837,6 +1837,7 @@ void CG_FireWeapon( centity_t *cent, qboolean altFire ) {
 	if ( ent->weapon == WP_NONE ) {
 		return;
 	}
+
 	if ( ent->weapon >= WP_NUM_WEAPONS ) {
 		trap->Error( ERR_DROP, "CG_FireWeapon: ent->weapon >= WP_NUM_WEAPONS" );
 		return;

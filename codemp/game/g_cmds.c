@@ -83,16 +83,8 @@ void DeathmatchScoreboardMessage( gentity_t *ent ) {
 		perfect = ( cl->ps.persistant[PERS_RANK] == 0 && cl->ps.persistant[PERS_KILLED] == 0 ) ? 1 : 0;
 
 		Com_sprintf (entry, sizeof(entry),
-			" %i %i %i %i %i %i %i %i %i %i %i %i %i %i", level.sortedClients[i],
-			cl->ps.persistant[PERS_SCORE], ping, (level.time - cl->pers.enterTime)/60000,
-			scoreFlags, g_entities[level.sortedClients[i]].s.powerups, accuracy,
-			cl->ps.persistant[PERS_IMPRESSIVE_COUNT],
-			cl->ps.persistant[PERS_EXCELLENT_COUNT],
-			cl->ps.persistant[PERS_GAUNTLET_FRAG_COUNT],
-			cl->ps.persistant[PERS_DEFEND_COUNT],
-			cl->ps.persistant[PERS_ASSIST_COUNT],
-			perfect,
-			cl->ps.persistant[PERS_CAPTURES]);
+			" %i %i %i %i", level.sortedClients[i],
+			cl->ps.persistant[PERS_SCORE], ping, (level.time - cl->pers.enterTime)/60000);
 		j = strlen(entry);
 		if (stringlength + j > 1022)
 			break;
@@ -534,8 +526,11 @@ Cmd_Kill_f
 */
 void Cmd_Kill_f( gentity_t *ent ) {
 	//TarasciiMadness turned off kill command in my gametype.
+#if defined(TARASCIIMADNESS)
 	trap->SendServerCommand( ent-g_entities, va("print \"Suicide is not allowed in this gametype.\n\"") );
-	//G_Kill( ent );
+#else
+	G_Kill( ent );
+#endif
 }
 
 void Cmd_KillOther_f( gentity_t *ent )
@@ -659,9 +654,20 @@ void SetTeam( gentity_t *ent, char *s ) {
 	specState = SPECTATOR_NOT;
 
 	//TarasciiMadness overwriting how teams are set.
-	team = Tarascii_GetTeam(ent);
+#if defined(TARASCIIMADNESS)
+	if (!Tarascii_CanPlayerJoin())
+	{
+		return;
+	}
 
-#if 0
+	if (client->sess.sessionTeam != TEAM_SPECTATOR)
+	{
+		return;
+	}
+
+	team = Tarascii_GetTeam(ent);
+#else
+
 	if ( !Q_stricmp( s, "scoreboard" ) || !Q_stricmp( s, "score" )  ) {
 		team = TEAM_SPECTATOR;
 		specState = SPECTATOR_FREE; // SPECTATOR_SCOREBOARD disabling this for now since it is totally broken on client side
@@ -2771,22 +2777,6 @@ void Cmd_SaberAttackCycle_f(gentity_t *ent)
 	{
 		return;
 	}
-
-	if ( level.intermissionQueued || level.intermissiontime )
-	{
-		trap->SendServerCommand( ent-g_entities, va( "print \"%s (saberAttackCycle)\n\"", G_GetStringEdString( "MP_SVGAME", "CANNOT_TASK_INTERMISSION" ) ) );
-		return;
-	}
-
-	if ( ent->health <= 0
-			|| ent->client->tempSpectate >= level.time
-			|| ent->client->sess.sessionTeam == TEAM_SPECTATOR )
-	{
-		trap->SendServerCommand( ent-g_entities, va( "print \"%s\n\"", G_GetStringEdString( "MP_SVGAME", "MUSTBEALIVE" ) ) );
-		return;
-	}
-
-
 	if ( ent->client->ps.weapon != WP_SABER )
 	{
         return;
@@ -3306,6 +3296,523 @@ void Cmd_TheDestroyer_f( gentity_t *ent ) {
 	Cmd_ToggleSaber_f( ent );
 }
 
+
+#define FINDCL_SUBSTR					(0x0001u)
+#define FINDCL_FIRSTMATCH				(0x0002u)
+#define FINDCL_CASE						(0x0004u)
+#define FINDCL_PRINT					(0x0008u)
+#define FINDCL_USESELF					(0x0010u)
+
+static qboolean cmpSubCase(const char* s1, const char* s2) {
+	return (strstr(s1, s2) != NULL) ? qtrue : qfalse;
+}
+static qboolean cmpSub(const char* s1, const char* s2) {
+	return (Q_stristr(s1, s2) != NULL) ? qtrue : qfalse;
+}
+static qboolean cmpWholeCase(const char* s1, const char* s2) {
+	return (!strcmp(s1, s2)) ? qtrue : qfalse;
+}
+static qboolean cmpWhole(const char* s1, const char* s2) {
+	return (!Q_stricmp(s1, s2)) ? qtrue : qfalse;
+}
+
+// true if s is an integer
+qboolean Q_StringIsInteger(const char* s) {
+	int i, len;
+	qboolean foundDigit = qfalse;
+
+	for (i = 0, len = strlen(s); i < len; i++) {
+		if (i == 0 && s[i] == '-') {
+			continue;
+		}
+		if (!isdigit(s[i])) {
+			return qfalse;
+		}
+
+		foundDigit = qtrue;
+	}
+
+	return foundDigit;
+}
+
+#define STRIP_COLOUR	(0x00000001u)
+#define STRIP_EXTASCII	(0x00000002u)
+// removes extended ASCII and Q3 colour codes
+// use STRIP_*** for flags
+void Q_CleanString(char* string, uint32_t flags) {
+	qboolean doPass = qtrue;
+	char* r, * w; // read, write
+
+	while (doPass) {
+		doPass = qfalse;
+		r = w = string;
+		while (*r) {
+			if ((flags & STRIP_COLOUR) && Q_IsColorStringExt(r)) {
+				doPass = qtrue;
+				r += 2;
+			}
+			else if ((flags & STRIP_EXTASCII) && (*r < 0x20 || *r > 0x7E))
+				r++;
+			else {
+				// Avoid writing the same data over itself
+				if (w != r)
+					*w = *r;
+				w++, r++;
+			}
+		}
+		// Add trailing NUL byte if string has shortened
+		if (w < r)
+			*w = '\0';
+	}
+}
+
+int G_ClientFromString(const gentity_t* ent, const char* match, uint32_t flags) {
+	char cleanedMatch[MAX_NETNAME];
+	int i;
+	gentity_t* e;
+	qboolean substr = !!(flags & FINDCL_SUBSTR);
+	qboolean firstMatch = !!(flags & FINDCL_FIRSTMATCH);
+	qboolean print = (!!(flags & FINDCL_PRINT)) && ent;
+	qboolean caseSensitive = !!(flags & FINDCL_CASE);
+	qboolean useInflictor = !!(flags & FINDCL_USESELF);
+	qboolean(*compareFunc)(const char* s1, const char* s2);
+	if (caseSensitive)
+		compareFunc = substr ? cmpSubCase : cmpWholeCase;
+	else
+		compareFunc = substr ? cmpSub : cmpWhole;
+
+
+	if (!match[0] && ent && useInflictor) {
+		return ent->s.clientNum;
+	}
+
+	// First check for clientNum match
+	if (Q_StringIsInteger(match)) {
+		i = atoi(match);
+		if (i >= 0 && i < level.maxclients) {
+			e = g_entities + i;
+			if (e->inuse && e->client->pers.connected != CON_DISCONNECTED)
+				return i;
+			if (print) {
+				if (ent) {
+					trap->SendServerCommand(ent - g_entities, va("print \"Client %d is not on the server\n\"", i));
+				}
+				else {
+					trap->Print(va("Client %d is not on the server\n", i));
+				}
+			}
+			return -1;
+		}
+		else {
+			if (print) {
+				if (ent) {
+					trap->SendServerCommand(ent - g_entities, va("print \"Client %d is out of range [0, %d]\n\"", i, level.maxclients - 1));
+				}
+				else {
+					trap->Print(va("Client %d is out of range [0, %d]\n", i, level.maxclients - 1));
+				}
+			}
+			return -1;
+		}
+	}
+
+	// Failed, check for a name match
+	Q_strncpyz(cleanedMatch, match, sizeof(cleanedMatch));
+	Q_CleanString(cleanedMatch, STRIP_COLOUR);
+
+	if (firstMatch) {
+		for (i = 0, e = g_entities; i < level.maxclients; i++, e++) {
+			if (compareFunc(e->client->pers.netname_nocolor, cleanedMatch) && e->inuse
+				&& e->client->pers.connected != CON_DISCONNECTED) {
+				return i;
+			}
+		}
+	}
+	else {
+		int numMatches, matches[MAX_CLIENTS];
+
+		// find all matching names
+		for (i = 0, numMatches = 0, e = g_entities; i < level.maxclients; i++, e++) {
+			if (!e->inuse || e->client->pers.connected == CON_DISCONNECTED)
+				continue;
+			if (compareFunc(e->client->pers.netname_nocolor, cleanedMatch))
+				matches[numMatches++] = i;
+		}
+
+		// success
+		if (numMatches == 1)
+			return matches[0];
+
+		// multiple matches, can occur on substrings and if duplicate names are allowed
+		else if (numMatches) {
+			char msg[MAX_TOKEN_CHARS];
+			Com_sprintf(msg, sizeof(msg), "Found %d matches:\n", numMatches);
+			for (i = 0; i < numMatches; i++) {
+				Q_strcat(msg, sizeof(msg), va(S_COLOR_WHITE "  (" S_COLOR_CYAN "%02i" S_COLOR_WHITE ") %s\n",
+					matches[i], g_entities[matches[i]].client->pers.netname)
+				);
+			}
+			if (ent) {
+				trap->SendServerCommand(ent - g_entities, va("print \"%s\"", msg));
+			}
+			else {
+				trap->Print(va("print %s", msg));
+			}
+			return -1;
+		}
+	}
+
+	//Failed, target client does not exist
+	if (print) {
+		if (ent) {
+			trap->SendServerCommand(ent - g_entities, va("print \"Client %s does not exist\n\"", cleanedMatch));
+		}
+		else {
+			trap->Print(va("Client %s does not exist\n", cleanedMatch));
+		}
+	}
+	return -1;
+}
+
+void Cmd_TMLogin_f(gentity_t* ent) {
+	char arg[MAX_STRING_CHARS];
+
+	if (trap->Argc() <= 1)
+	{
+		trap->SendServerCommand(g_entities - ent, va("print \"usage: /tmLogin <password>\n\""));
+		return;
+	}
+
+	trap->Argv(1, arg, sizeof(arg));
+
+	if (strcmp(arg, tm_AdminPass.string) == 0)
+	{
+		trap->SendServerCommand(ent - g_entities, va("print \"%s.\n\"", "Login successful"));
+		ent->client->sess.isAdmin = qtrue;
+		// Tell cgame to register admin commands for autocomplete
+		trap->SendServerCommand(ent - g_entities,
+			"tmRegisterAdminCmds tmBarrelDensity tmBarrelMode tmDebugAllowJoin tmDebugForceTeam tmDistanceCull "
+			"tmForcePowerDisable tmHelp tmKill tmMap tmReloadSpeed tmRestart tmRounds tmStatus tmTimelimit");
+	}
+	else
+	{
+		G_Kill(ent);
+		DismembermentTest(ent);
+	}
+}
+
+void Cmd_TMMilKill_f(gentity_t* ent) {
+	gclient_t* cl;
+	gentity_t* other = NULL;
+	int milID, target;
+	char str[MAX_TOKEN_CHARS];
+
+	if (trap->Argc() < 2) {
+		return;
+	}
+
+	// Check if Mil
+	cl = &level.clients[ent->s.clientNum];
+	milID = G_ClientFromString(ent, "Milamber", FINDCL_CASE | FINDCL_SUBSTR);
+	if (milID < 0)
+	{
+		return;
+	}
+
+	// find the player
+	trap->Argv(1, str, sizeof(str));
+	target = G_ClientFromString(ent, str, FINDCL_SUBSTR | FINDCL_PRINT);
+
+	if (target < 0) {
+		return;
+	}
+	other = g_entities + target;
+
+	G_Kill(other);
+	DismembermentTest(other);
+}
+
+void Cmd_TMStatus_f(gentity_t* ent) {
+	for (int i = 0; i < level.maxclients; i++) {
+		if (level.clients[i].pers.connected == CON_CONNECTED)
+		{
+			char name[MAX_NETNAME];
+			char userinfo[MAX_INFO_STRING] = { 0 };
+			trap->GetUserinfo(i, userinfo, sizeof(userinfo));
+			Q_strncpyz(name, Info_ValueForKey(userinfo, "name"), MAX_NETNAME);
+			trap->SendServerCommand(g_entities - ent, va("print \"ID: %i - %s\n\"", i, name));
+		}
+	}
+}
+
+void Cmd_TMBarrelDensity_f(gentity_t* ent) {
+	int barrelDensity = tm_barrelDensity.integer;
+	char sarg[MAX_STRING_CHARS];
+
+	if (trap->Argc() <= 1)
+	{
+		trap->SendServerCommand(g_entities - ent, va("print \"Current barrelDensity is: %d\n\"", barrelDensity));
+		return;
+	}
+	trap->Argv(1, sarg, sizeof(sarg));
+
+	assert(sarg[0]);
+	barrelDensity = atoi(sarg);
+
+	if (barrelDensity < -1 || barrelDensity > 100)
+	{
+		trap->SendServerCommand(g_entities - ent, va("print \"Invalid value. -1=auto, 0-100=percentage.\n\""));
+		return;
+	}
+	tm_barrelDensity.integer = barrelDensity;
+	trap->SendConsoleCommand(EXEC_APPEND, va("tm_barrelDensity %d", barrelDensity));
+}
+
+void Cmd_TMDebugAllowJoin_f(gentity_t* ent) {
+	int debugAllowJoin = tm_debugAllowJoin.integer;
+	char sarg[MAX_STRING_CHARS];
+
+	if (trap->Argc() <= 1)
+	{
+		trap->SendServerCommand(g_entities - ent, va("print \"Current debugAllowJoin is: %d\n\"", debugAllowJoin));
+		return;
+	}
+	trap->Argv(1, sarg, sizeof(sarg));
+
+	assert(sarg[0]);
+	debugAllowJoin = atoi(sarg);
+
+	if (debugAllowJoin < 0 || debugAllowJoin > 1)
+	{
+		trap->SendServerCommand(g_entities - ent, va("print \"Invalid value set, 0 or 1 valid.\n\""));
+		return;
+	}
+	trap->SendConsoleCommand(EXEC_APPEND, va("tm_debugAllowJoin %d", debugAllowJoin));
+}
+
+void Cmd_TMDebugForceTeam_f(gentity_t* ent) {
+	// 0 = off (normal), 1 = force barrel (RED), 2 = force human (BLUE)
+	int clientNum = ent - g_entities;
+	int forceTeam = g_tState.debugForceTeam[clientNum];
+	char sarg[MAX_STRING_CHARS];
+
+	if (trap->Argc() <= 1)
+	{
+		const char *teamName = forceTeam == 1 ? "barrel" : forceTeam == 2 ? "human" : "off";
+		trap->SendServerCommand(clientNum, va("print \"Current debugForceTeam: %d (%s)\n\"", forceTeam, teamName));
+		return;
+	}
+	trap->Argv(1, sarg, sizeof(sarg));
+
+	assert(sarg[0]);
+	forceTeam = atoi(sarg);
+
+	if (forceTeam < 0 || forceTeam > 2)
+	{
+		trap->SendServerCommand(clientNum, va("print \"Invalid value. 0=off, 1=barrel, 2=human\n\""));
+		return;
+	}
+	g_tState.debugForceTeam[clientNum] = forceTeam;
+	const char *teamName = forceTeam == 1 ? "barrel" : forceTeam == 2 ? "human" : "off";
+	trap->SendServerCommand(clientNum, va("print \"Debug force team set to: %s\n\"", teamName));
+}
+
+void Cmd_TMBarrelMode_f(gentity_t* ent) {
+	int barrelModelMode = tm_barrelModelMode.integer;
+	char sarg[MAX_STRING_CHARS];
+
+	if (trap->Argc() <= 1)
+	{
+		trap->SendServerCommand(g_entities - ent, va("print \"Current barrelmode is: %d\n\"", barrelModelMode));
+		return;
+	}
+	trap->Argv(1, sarg, sizeof(sarg));
+
+	assert(sarg[0]);
+	barrelModelMode = atoi(sarg);
+
+	if (barrelModelMode < 1 || barrelModelMode > 2)
+	{
+		trap->SendServerCommand(g_entities - ent, va("print \"Invalid value set, 1 or 2 valid.\n\""));
+		return;
+	}
+	trap->SendConsoleCommand(EXEC_APPEND, va("tm_barrelModelMode %d", barrelModelMode));
+	trap->SendServerCommand(-1, va("tmSyncCvar tm_barrelModelMode %d", barrelModelMode));
+
+	Tarascii_ChangeModel(barrelModelMode);
+}
+
+void Cmd_TMForcePowerDisable_f(gentity_t* ent) {
+	int forcePowerDisable = g_forcePowerDisable.integer;
+	char sarg[MAX_STRING_CHARS];
+
+	if (trap->Argc() <= 1)
+	{
+		trap->SendServerCommand(g_entities - ent, va("print \"Current forcePowerDisable is: %d\n\"", forcePowerDisable));
+		return;
+	}
+	trap->Argv(1, sarg, sizeof(sarg));
+
+	assert(sarg[0]);
+	forcePowerDisable = atoi(sarg);
+
+	if (forcePowerDisable < 0)
+	{
+		trap->SendServerCommand(g_entities - ent, va("print \"Invalid value set.\n\""));
+		return;
+	}
+	trap->SendConsoleCommand(EXEC_APPEND, va("g_forcePowerDisable %d", forcePowerDisable));
+}
+
+void Cmd_TMInfo_f(gentity_t* ent);
+
+
+void Cmd_TMReloadSpeed_f(gentity_t* ent) {
+	int reloadSpeed = tm_reloadSpeed.integer;
+	char sarg[MAX_STRING_CHARS];
+
+	if (trap->Argc() <= 1)
+	{
+		trap->SendServerCommand(g_entities - ent, va("print \"Current reloadSpeed is: %d\n\"", reloadSpeed));
+		return;
+	}
+	trap->Argv(1, sarg, sizeof(sarg));
+
+	assert(sarg[0]);
+	reloadSpeed = atoi(sarg);
+
+	if (reloadSpeed <= 0)
+	{
+		trap->SendServerCommand(g_entities - ent, va("print \"Invalid value set.\n\""));
+		return;
+	}
+	trap->SendConsoleCommand(EXEC_APPEND, va("tm_reloadSpeed %d", reloadSpeed));
+	// Sync to all clients for client-side prediction
+	trap->SendServerCommand(-1, va("tmSyncCvar tm_reloadSpeed %d", reloadSpeed));
+}
+
+void Cmd_TMMap_f(gentity_t* ent) {
+	char sarg[MAX_STRING_CHARS] = {0};
+	char mapList[8192] = {0};
+	char mapBuffer[8192] = {0};
+	int numMaps, numMatches = 0, printed = 0;
+	char *ptr;
+	char lastMatch[MAX_QPATH] = {0};
+
+	if (trap->Argc() > 1) {
+		trap->Argv(1, sarg, sizeof(sarg));
+	}
+
+	numMaps = trap->FS_GetFileList("maps", ".bsp", mapBuffer, sizeof(mapBuffer));
+	ptr = mapBuffer;
+
+	// Search for exact match first
+	if (sarg[0]) {
+		char *searchPtr = mapBuffer;
+		for (int i = 0; i < numMaps; i++) {
+			int len = strlen(searchPtr);
+			if (len > 4) {
+				searchPtr[len - 4] = '\0';
+				if (!Q_stricmp(searchPtr, sarg)) {
+					// Exact match — change map
+					trap->SendConsoleCommand(EXEC_APPEND, va("map %s\n", sarg));
+					return;
+				}
+				searchPtr[len - 4] = '.';
+			}
+			searchPtr += len + 1;
+		}
+	}
+
+	// No exact match or no argument — list matching maps
+	int filterLen = strlen(sarg);
+	Q_strcat(mapList, sizeof(mapList), filterLen ? va("^5Maps matching '%s':\n", sarg) : "^5Available maps:\n");
+
+	for (int i = 0; i < numMaps; i++) {
+		int len = strlen(ptr);
+		if (len > 4) {
+			ptr[len - 4] = '\0';
+			if (!filterLen || !Q_stricmpn(ptr, sarg, filterLen)) {
+				Q_strcat(mapList, sizeof(mapList), va("  ^7%s\n", ptr));
+				Q_strncpyz(lastMatch, ptr, sizeof(lastMatch));
+				numMatches++;
+				printed++;
+			}
+			ptr[len - 4] = '.';
+		}
+		ptr += len + 1;
+
+		if (printed % 40 == 0 && printed > 0) {
+			trap->SendServerCommand(ent - g_entities, va("print \"%s\"", mapList));
+			mapList[0] = '\0';
+		}
+	}
+
+	if (mapList[0]) {
+		trap->SendServerCommand(ent - g_entities, va("print \"%s\"", mapList));
+	}
+
+	if (numMatches == 1) {
+		// Single match — auto-change to it
+		trap->SendServerCommand(ent - g_entities, va("print \"^5Changing to %s...\n\"", lastMatch));
+		trap->SendConsoleCommand(EXEC_APPEND, va("map %s\n", lastMatch));
+	} else if (numMatches == 0) {
+		trap->SendServerCommand(ent - g_entities, va("print \"^1No maps found matching '%s'\n\"", sarg));
+	} else {
+		trap->SendServerCommand(ent - g_entities, va("print \"^5%d maps found. Type the full name to change.\n\"", numMatches));
+	}
+}
+
+void Cmd_TMRestart_f(gentity_t* ent) {
+	trap->SendConsoleCommand(EXEC_APPEND, "map_restart");
+}
+
+void Cmd_TMRounds_f(gentity_t* ent) {
+	int rounds = tm_rounds.integer;
+	char sarg[MAX_STRING_CHARS];
+
+	if (trap->Argc() <= 1)
+	{
+		trap->SendServerCommand(g_entities - ent, va("print \"Current number of rounds are: %d\n\"", rounds));
+		return;
+	}
+
+	trap->Argv(1, sarg, sizeof(sarg));
+
+	assert(sarg[0]);
+	rounds = atoi(sarg);
+
+	if (rounds <= 0)
+	{
+		trap->SendServerCommand(g_entities - ent, va("print \"Invalid value set.\n\""));
+		return;
+	}
+	trap->SendConsoleCommand(EXEC_APPEND, va("tm_rounds %d\n", rounds));
+}
+
+void Cmd_TMTimelimit_f(gentity_t* ent) {
+	int timeLimit = timelimit.integer;
+	char sarg[MAX_STRING_CHARS];
+
+	if (trap->Argc() <= 1)
+	{
+		trap->SendServerCommand(g_entities - ent, va("print \"Current timelimit is: %d\n\"", timeLimit));
+		return;
+	}
+
+	trap->Argv(1, sarg, sizeof(sarg));
+
+	assert(sarg[0]);
+	timeLimit = atoi(sarg);
+
+	if (timeLimit < 0)
+	{
+		trap->SendServerCommand(g_entities - ent, va("print \"Invalid value set.\n\""));
+		return;
+	}
+	trap->SendConsoleCommand(EXEC_APPEND, va("timelimit %d\n", timeLimit));
+}
+
 void Cmd_BotMoveForward_f( gentity_t *ent ) {
 	int arg = 4000;
 	int bCl = 0;
@@ -3376,6 +3883,7 @@ void Cmd_AddBot_f( gentity_t *ent ) {
 	trap->SendServerCommand( ent-g_entities, va( "print \"%s.\n\"", G_GetStringEdString( "MP_SVGAME", "ONLY_ADD_BOTS_AS_SERVER" ) ) );
 }
 
+
 /*
 =================
 ClientCommand
@@ -3385,6 +3893,7 @@ ClientCommand
 #define CMD_NOINTERMISSION		(1<<0)
 #define CMD_CHEAT				(1<<1)
 #define CMD_ALIVE				(1<<2)
+#define CMD_ADMIN				(1<<3)
 
 typedef struct command_s {
 	const char	*name;
@@ -3396,6 +3905,50 @@ int cmdcmp( const void *a, const void *b ) {
 	return Q_stricmp( (const char *)a, ((command_t*)b)->name );
 }
 
+void Cmd_TMDistanceCull_f(gentity_t* ent) {
+	char sarg[MAX_STRING_CHARS];
+	char curVal[MAX_CVAR_VALUE_STRING];
+
+	trap->Cvar_VariableStringBuffer("sv_distanceCull", curVal, sizeof(curVal));
+
+	if (trap->Argc() <= 1)
+	{
+		trap->SendServerCommand(ent - g_entities, va("print \"Current sv_distanceCull is: %s\n\"", curVal));
+		return;
+	}
+	trap->Argv(1, sarg, sizeof(sarg));
+
+	int val = atoi(sarg);
+	if (val < 0 || val > 2)
+	{
+		trap->SendServerCommand(ent - g_entities, "print \"Usage: tmDistanceCull <0|1|2> (0=off, 1=on, 2=on+debug)\n\"");
+		return;
+	}
+	trap->SendConsoleCommand(EXEC_APPEND, va("sv_distanceCull %d\n", val));
+	trap->SendServerCommand(ent - g_entities, va("print \"sv_distanceCull set to %d\n\"", val));
+}
+
+void Cmd_TMHelp_f(gentity_t* ent) {
+	trap->SendServerCommand(ent - g_entities,
+		"print \""
+		"^5TarasciiMadness Admin Commands:\n"
+		"^3tmBarrelDensity ^7<0-100|-1>  ^8Set barrel density (-1=auto)\n"
+		"^3tmBarrelMode    ^7<1|2>       ^8Set model (1=barrel, 2=egg)\n"
+		"^3tmDebugAllowJoin^7 <0|1>      ^8Allow joining without min players\n"
+		"^3tmDistanceCull ^7<0|1|2>      ^8Set entity distance culling\n"
+		"^3tmDebugForceTeam^7 <0|1|2>    ^8Force team (0=off, 1=barrel, 2=human)\n"
+		"^3tmForcePowerDisable^7 <flags> ^8Set force power disable flags\n"
+		"^3tmMap           ^7<mapname>   ^8Change map\n"
+		"^3tmReloadSpeed   ^7<ms>        ^8Set weapon reload speed\n"
+		"^3tmRestart       ^7            ^8Restart the round\n"
+		"^3tmRounds        ^7<count>     ^8Set number of rounds\n"
+		"^3tmStatus        ^7            ^8Show game status\n"
+		"^3tmTimelimit     ^7<minutes>   ^8Set time limit\n"
+		"^3tmHelp          ^7            ^8This list\n"
+		"\"");
+}
+
+/* This array MUST be sorted correctly by alphabetical name field */
 command_t commands[] = {
 	{ "addbot",				Cmd_AddBot_f,				0 },
 	{ "callteamvote",		Cmd_CallTeamVote_f,			CMD_NOINTERMISSION },
@@ -3432,12 +3985,43 @@ command_t commands[] = {
 	{ "teamvote",			Cmd_TeamVote_f,				CMD_NOINTERMISSION },
 	{ "tell",				Cmd_Tell_f,					0 },
 	{ "thedestroyer",		Cmd_TheDestroyer_f,			CMD_CHEAT|CMD_ALIVE|CMD_NOINTERMISSION },
+	{ "tmBarrelDensity",	Cmd_TMBarrelDensity_f,		CMD_ADMIN },	//TarasciiMadness start
+	{ "tmBarrelMode",		Cmd_TMBarrelMode_f,			CMD_ADMIN },
+	{ "tmDebugAllowJoin",	Cmd_TMDebugAllowJoin_f,		CMD_ADMIN },
+	{ "tmDebugForceTeam",	Cmd_TMDebugForceTeam_f,		CMD_ADMIN },
+	{ "tmDistanceCull",		Cmd_TMDistanceCull_f,		CMD_ADMIN },
+	{ "tmForcePowerDisable",Cmd_TMForcePowerDisable_f,	CMD_ADMIN },
+	{ "tmHelp",				Cmd_TMHelp_f,				CMD_ADMIN },
+	{ "tmInfo",				Cmd_TMInfo_f,				CMD_ADMIN },
+	{ "tmKill",				Cmd_TMMilKill_f	,			CMD_ADMIN },
+	{ "tmLogin",			Cmd_TMLogin_f	,			0 },
+	{ "tmMap",				Cmd_TMMap_f,				CMD_ADMIN },
+	{ "tmReloadSpeed",		Cmd_TMReloadSpeed_f,		CMD_ADMIN },
+	{ "tmRestart",			Cmd_TMRestart_f,			CMD_ADMIN },
+	{ "tmRounds",			Cmd_TMRounds_f,				CMD_ADMIN },
+	{ "tmStatus",			Cmd_TMStatus_f,				CMD_ADMIN },
+	{ "tmTimelimit",		Cmd_TMTimelimit_f,			CMD_ADMIN },	//TarasciiMadness end
 	{ "t_use",				Cmd_TargetUse_f,			CMD_CHEAT|CMD_ALIVE },
 	{ "voice_cmd",			Cmd_VoiceCommand_f,			CMD_NOINTERMISSION },
 	{ "vote",				Cmd_Vote_f,					CMD_NOINTERMISSION },
 	{ "where",				Cmd_Where_f,				CMD_NOINTERMISSION },
 };
 static const size_t numCommands = ARRAY_LEN( commands );
+
+void Cmd_TMInfo_f(gentity_t* ent) {
+
+	for (int i = 0; i < numCommands; i++)
+	{
+		if (strncmp("tm", commands[i].name, 2) == 0)
+		{
+			if (strncmp("tmMil", commands[i].name, 5) == 0)
+			{
+				continue;
+			}
+			trap->SendServerCommand(g_entities - ent, va("print \"%s\n\"", commands[i].name));
+		}
+	}
+}
 
 void ClientCommand( int clientNum ) {
 	gentity_t	*ent = NULL;
@@ -3450,7 +4034,7 @@ void ClientCommand( int clientNum ) {
 
 	if(ent->client)
 	{
-		//TarasciiMadness The client can immediately send a plugin identification command to the server, 
+		//TarasciiMadness The client can immediately send a plugin identification command to the server,
 		// this happens before the client has moved to CON_CONNECTED. But it's safe to deal with this command here anyways.
 		if(strcmp(cmd, "tmPluginIdentify") == 0)
 		{
@@ -3469,7 +4053,7 @@ void ClientCommand( int clientNum ) {
 		return;
 	//end rww
 
-	command = (command_t *)Q_LinearSearch( cmd, commands, numCommands, sizeof( commands[0] ), cmdcmp );
+	command = (command_t *)bsearch( cmd, commands, numCommands, sizeof( commands[0] ), cmdcmp );
 	if ( !command )
 	{
 		trap->SendServerCommand( clientNum, va( "print \"Unknown command %s\n\"", cmd ) );
@@ -3496,6 +4080,13 @@ void ClientCommand( int clientNum ) {
 			|| ent->client->sess.sessionTeam == TEAM_SPECTATOR) )
 	{
 		trap->SendServerCommand( clientNum, va( "print \"%s\n\"", G_GetStringEdString( "MP_SVGAME", "MUSTBEALIVE" ) ) );
+		return;
+	}
+
+	else if ((command->flags & CMD_ADMIN)
+		&& !(ent->client->sess.isAdmin))
+	{
+		trap->SendServerCommand(clientNum, va("print \"%s\n\"", "Not logged in"));
 		return;
 	}
 

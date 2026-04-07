@@ -28,7 +28,7 @@ set(JKASPClientComponent "JKASPClient")
 set(JK2SPClientComponent "JK2SPClient")
 
 # Component display names
-include(CPackComponent)
+#include(CPackComponent)
 
 set(CPACK_COMPONENT_JKAMPCORE_DISPLAY_NAME "Core")
 set(CPACK_COMPONENT_JKAMPCORE_REQUIRED TRUE)
@@ -56,18 +56,18 @@ set(CPACK_COMPONENT_JKAMPSERVER_GROUP "JKAMP")
 set(CPACK_COMPONENT_JKASPCLIENT_GROUP "JKASP")
 set(CPACK_COMPONENT_JK2SPCLIENT_GROUP "JK2SP")
 
-cpack_add_component_group(JKAMP
-	DISPLAY_NAME "Jedi Academy Multiplayer"
-	DESCRIPTION "Jedi Academy multiplayer game")
-cpack_add_component_group(JKASP
-	DISPLAY_NAME "Jedi Academy Single Player"
-	DESCRIPTION "Jedi Academy single player game")
-cpack_add_component_group(JK2SP
-	DISPLAY_NAME "Jedi Outcast Single Player"
-	DESCRIPTION "Jedi Outcast single player game")
+#cpack_add_component_group(JKAMP
+#	DISPLAY_NAME "Jedi Academy Multiplayer"
+#	DESCRIPTION "Jedi Academy multiplayer game")
+#cpack_add_component_group(JKASP
+#	DISPLAY_NAME "Jedi Academy Single Player"
+#	DESCRIPTION "Jedi Academy single player game")
+#cpack_add_component_group(JK2SP
+#	DISPLAY_NAME "Jedi Outcast Single Player"
+#	DESCRIPTION "Jedi Outcast single player game")
 
 if(WIN32)
-	include(CPackNSIS)
+	#include(CPackNSIS)
 	set(CPACK_NSIS_DISPLAY_NAME "OpenJK")
 	set(CPACK_NSIS_PACKAGE_NAME "OpenJK")
 	set(CPACK_NSIS_MUI_ICON "${SharedDir}/icons/icon.ico")
@@ -157,7 +157,7 @@ set(CPACK_PACKAGE_INSTALL_DIRECTORY "OpenJK")
 set(CPACK_RESOURCE_FILE_README "${CMAKE_SOURCE_DIR}/README.md")
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/LICENSE.txt")
 set(CPACK_PACKAGE_DIRECTORY ${PACKAGE_DIR})
-set(CPACK_BINARY_ZIP ON) # always create at least a zip file
+#set(CPACK_BINARY_ZIP ON) # always create at least a zip file
 set(CPACK_INCLUDE_TOPLEVEL_DIRECTORY 0) # prevent additional directory in zip
 
 include(CPack)

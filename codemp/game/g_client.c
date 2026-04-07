@@ -832,7 +832,7 @@ gentity_t *SelectRandomFurthestSpawnPoint ( vec3_t avoidPoint, vec3_t origin, ve
 	}
 
 	// select a random spot from the spawn points furthest away
-	rnd = Q_flrand(0.0f, 1.0f) * (numSpots / 2);
+	rnd = random() * (numSpots / 2);
 
 	VectorCopy (list_spot[rnd]->s.origin, origin);
 	origin[2] += 9;
@@ -925,7 +925,7 @@ tryAgain:
 	}
 
 	// select a random spot from the spawn points furthest away
-	rnd = Q_flrand(0.0f, 1.0f) * (numSpots / 2);
+	rnd = random() * (numSpots / 2);
 
 	VectorCopy (list_spot[rnd]->s.origin, origin);
 	origin[2] += 9;
@@ -2463,6 +2463,12 @@ char *ClientConnect( int clientNum, qboolean firstTime, qboolean isBot ) {
 	{
 		Tarascii_ReadSessionData(); //TarasciiMadness Read Sessiondata;
 	}
+	else
+	{
+		client = &level.clients[clientNum];
+		client->sess.isAdmin = qfalse; //TarasciiMadness
+		Tarascii_WriteClientSessionData(client);
+	}
 
 	firstTime = qtrue;//TarasciiMadness Overwrite firstTime
 
@@ -2539,7 +2545,7 @@ char *ClientConnect( int clientNum, qboolean firstTime, qboolean isBot ) {
 	}
 
 	// they can connect
-	client = &level.clients[ clientNum ];
+	client = &level.clients[ clientNum ]; //TarasciiMadness done further up
 	ent->client = client;
 
 	//assign the pointer for bg entity access
@@ -2556,6 +2562,7 @@ char *ClientConnect( int clientNum, qboolean firstTime, qboolean isBot ) {
 	if ( firstTime || level.newSession ) {
 		G_InitSessionData( client, userinfo, isBot );
 	}
+	Tarascii_ReadClientSessionData(client);
 	G_ReadSessionData( client );
 
 	if (level.gametype == GT_SIEGE &&
@@ -2670,7 +2677,7 @@ void ClientBegin( int clientNum, qboolean allowTeamReset ) {
 
 	Tarascii_ClientBegin(ent);
 
-	if ((ent->r.svFlags & SVF_BOT) && level.gametype >= GT_TEAM)
+	if ((ent->r.svFlags & SVF_BOT) && level.gametype >= GT_TEAM && Tarascii_CanPlayerJoin())
 	{
 		if (allowTeamReset)
 		{
@@ -3757,14 +3764,6 @@ void ClientSpawn(gentity_t *ent) {
 			ent->health = client->ps.stats[STAT_HEALTH] = client->ps.stats[STAT_MAX_HEALTH] = 100;
 		}
 	}
-	else if (client->ps.stats[STAT_MAX_HEALTH] <= 100)
-	{
-		ent->health = client->ps.stats[STAT_HEALTH] = client->ps.stats[STAT_MAX_HEALTH] * 1.25;
-	}
-	else if (client->ps.stats[STAT_MAX_HEALTH] < 125)
-	{
-		ent->health = client->ps.stats[STAT_HEALTH] = 125;
-	}
 	else
 	{
 		ent->health = client->ps.stats[STAT_HEALTH] = client->ps.stats[STAT_MAX_HEALTH];
@@ -3786,10 +3785,12 @@ void ClientSpawn(gentity_t *ent) {
 		client->ps.stats[STAT_ARMOR] = client->ps.stats[STAT_MAX_HEALTH] * 0.25;
 	}
 
+
 	G_SetOrigin( ent, spawn_origin );
 	VectorCopy( spawn_origin, client->ps.origin );
 
 	Tarascii_ClientSpawn(ent);
+
 
 	// the respawned flag will be cleared after the attack and jump keys come up
 	client->ps.pm_flags |= PMF_RESPAWNED;
@@ -3840,13 +3841,6 @@ void ClientSpawn(gentity_t *ent) {
 
 			// positively link the client, even if the command times are weird
 			VectorCopy(ent->client->ps.origin, ent->r.currentOrigin);
-
-			if (ent->client->sess.sessionTeam == TEAM_BLUE)	//TarasciiMadness Remove Spawn Effect
-			{
-				tent = G_TempEntity(ent->client->ps.origin, EV_PLAYER_TELEPORT_IN);
-				tent->s.clientNum = ent->s.clientNum;
-			}
-
 
 			trap->LinkEntity ((sharedEntity_t *)ent);
 		}

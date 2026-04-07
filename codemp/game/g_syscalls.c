@@ -124,6 +124,15 @@ void trap_GetServerinfo( char *buffer, int bufferSize ) {
 void trap_SetServerCull(float cullDistance) {
 	Q_syscall(G_SET_SERVER_CULL, PASSFLOAT(cullDistance));
 }
+int trap_RegisterStaticDecoration(entityState_t *state) {
+	return Q_syscall(G_REGISTER_STATIC_DECORATION, state);
+}
+void trap_RemoveStaticDecoration(int id) {
+	Q_syscall(G_REMOVE_STATIC_DECORATION, id);
+}
+void trap_UpdateStaticDecoration(int id, entityState_t *state) {
+	Q_syscall(G_UPDATE_STATIC_DECORATION, id, state);
+}
 void trap_SetBrushModel( sharedEntity_t *ent, const char *name ) {
 	Q_syscall( G_SET_BRUSH_MODEL, ent, name );
 }
@@ -1090,6 +1099,9 @@ static void TranslateSyscalls( void ) {
 	trap->SetBrushModel						= trap_SetBrushModel;
 	trap->SetConfigstring					= trap_SetConfigstring;
 	trap->SetServerCull						= trap_SetServerCull;
+	trap->RegisterStaticDecoration			= trap_RegisterStaticDecoration;
+	trap->RemoveStaticDecoration			= trap_RemoveStaticDecoration;
+	trap->UpdateStaticDecoration			= trap_UpdateStaticDecoration;
 	trap->SetUserinfo						= trap_SetUserinfo;
 	trap->SiegePersSet						= trap_SiegePersSet;
 	trap->SiegePersGet						= trap_SiegePersGet;

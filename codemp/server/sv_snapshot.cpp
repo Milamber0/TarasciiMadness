@@ -24,6 +24,9 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "server.h"
 #include "qcommon/cm_public.h"
 
+#include <cmath>
+#include <algorithm>
+
 /*
 =============================================================================
 
@@ -360,9 +363,11 @@ static void SV_AddEntToSnapshot( svEntity_t *svEnt, sharedEntity_t *gEnt, snapsh
 SV_AddEntitiesVisibleFromPoint
 ===============
 */
+bool distCompare(std::pair<int, float>&i, std::pair<int, float>&j) { return i.second < j.second; }
 float g_svCullDist = -1.0f;
+static int g_frameIndex = -1;
 static void SV_AddEntitiesVisibleFromPoint( vec3_t origin, clientSnapshot_t *frame,
-									snapshotEntityNumbers_t *eNums, qboolean portal ) {
+									snapshotEntityNumbers_t *eNums, qboolean portal, int clientNum = -1 ) {
 	int		e, i;
 	sharedEntity_t *ent;
 	svEntity_t	*svEnt;
@@ -390,8 +395,85 @@ static void SV_AddEntitiesVisibleFromPoint( vec3_t origin, clientSnapshot_t *fra
 
 	clientpvs = CM_ClusterPVS (clientcluster);
 
-	for ( e = 0 ; e < sv.num_entities ; e++ ) {
-		ent = SV_GentityNum(e);
+
+	static std::vector<std::vector<std::pair<int, float>>> distanceMap;
+	static std::vector<int> entSize;
+
+	if (!distanceMap.size() || sv_distanceCull->modified)
+	{
+		distanceMap.clear();
+		entSize.clear();
+		distanceMap.resize(sv_maxclients->integer);
+		entSize.resize(sv_maxclients->integer, sv.num_entities);
+	}
+
+	if (sv_distanceCull->integer && (clientNum == g_frameIndex || entSize[clientNum] != sv.num_entities))
+	{
+		distanceMap[clientNum].clear();
+		for (i = 0; i < sv.num_entities; i++)
+		{
+			ent = SV_GentityNum(i);
+
+
+			if ((ent->r.svFlags & SVF_BROADCAST) || i == frame->ps.clientNum
+				|| (ent->r.broadcastClients[frame->ps.clientNum / 32] & (1 << (frame->ps.clientNum % 32))))	//Fix this so barrels aren't visible from far away if it's a player.
+			{
+				svEnt = SV_SvEntityForGentity( ent );
+				SV_AddEntToSnapshot(svEnt, ent, eNums);
+				continue;
+			}
+
+			if (ent->s.isPortalEnt)
+			{ //rww - portal entities are always sent as well
+				svEnt = SV_SvEntityForGentity(ent);
+				SV_AddEntToSnapshot(svEnt, ent, eNums);
+				continue;
+			}
+
+			if (ent->s.eType == ET_EVENTS + EV_DISRUPTOR_MAIN_SHOT ||
+				ent->s.eType == ET_EVENTS + EV_DISRUPTOR_SNIPER_SHOT ||
+				ent->s.eType == ET_EVENTS + EV_DISRUPTOR_SNIPER_MISS ||
+				ent->s.eType == ET_EVENTS + EV_DISRUPTOR_HIT ||
+				ent->s.eType == ET_EVENTS + EV_VOICECMD_SOUND)
+			{
+				svEnt = SV_SvEntityForGentity(ent);
+				SV_AddEntToSnapshot(svEnt, ent, eNums);
+				continue;
+			}
+
+			if (ent->s.eType == ET_EVENTS + EV_GENERAL_SOUND)
+			{ //rww - portal entities are always sent as well
+				svEnt = SV_SvEntityForGentity(ent);
+				SV_AddEntToSnapshot(svEnt, ent, eNums);
+				continue;
+			}
+
+			float distance = 0;
+			for (int j = 0; j < 3; j++)
+			{
+				distance += std::fabs(ent->s.origin[j] - origin[j]);
+			}
+			distanceMap[clientNum].push_back(std::make_pair(i, distance));
+		}
+		std::sort(distanceMap[clientNum].begin(), distanceMap[clientNum].end(), distCompare);
+		entSize[clientNum] = distanceMap[clientNum].size();
+	}
+
+	if (!sv_distanceCull->integer)
+	{
+		entSize[clientNum] = sv.num_entities;
+	}
+
+
+	for ( e = 0 ; e < entSize[clientNum]; e++ ) {
+		if (sv_distanceCull->integer && distanceMap[clientNum].size())
+		{
+			ent = SV_GentityNum(distanceMap[clientNum][e].first);
+		}
+		else
+		{
+			ent = SV_GentityNum(e);
+		}
 
 		// never send entities that aren't linked in
 		if ( !ent->r.linked ) {
@@ -403,9 +485,19 @@ static void SV_AddEntitiesVisibleFromPoint( vec3_t origin, clientSnapshot_t *fra
 			continue;
 		}
 
-		if (ent->s.number != e) {
-			Com_DPrintf ("FIXING ENT->S.NUMBER!!!\n");
-			ent->s.number = e;
+		if (sv_distanceCull->integer && distanceMap[clientNum].size())
+		{
+			if (ent->s.number != distanceMap[clientNum][e].first) {
+				Com_DPrintf ("FIXING ENT->S.NUMBER!!!\n");
+				ent->s.number = distanceMap[clientNum][e].first;
+			}
+		}
+		else
+		{
+			if (ent->s.number != e) {
+				Com_DPrintf ("FIXING ENT->S.NUMBER!!!\n");
+				ent->s.number = e;
+			}
 		}
 
 		// entities can be flagged to explicitly not be sent to the client
@@ -433,6 +525,12 @@ static void SV_AddEntitiesVisibleFromPoint( vec3_t origin, clientSnapshot_t *fra
 			continue;
 		}
 
+		int temp = e;
+		if (sv_distanceCull->integer && distanceMap[clientNum].size())
+		{
+			e = distanceMap[clientNum][e].first;
+		}
+
 		// entities can request not to be sent to certain clients (NOTE: always send to ourselves)
 		if ( e != frame->ps.clientNum && (ent->r.svFlags & SVF_BROADCASTCLIENTS)
 			&& !(ent->r.broadcastClients[frame->ps.clientNum/32] & (1 << (frame->ps.clientNum % 32))) )
@@ -446,6 +544,7 @@ static void SV_AddEntitiesVisibleFromPoint( vec3_t origin, clientSnapshot_t *fra
 			SV_AddEntToSnapshot( svEnt, ent, eNums );
 			continue;
 		}
+		e = temp;
 
 		if (ent->s.isPortalEnt)
 		{ //rww - portal entities are always sent as well
@@ -609,7 +708,7 @@ static void SV_BuildClientSnapshot( client_t *client ) {
 
 	// add all the entities directly visible to the eye, which
 	// may include portal entities that merge other viewpoints
-	SV_AddEntitiesVisibleFromPoint( org, frame, &entityNumbers, qfalse );
+	SV_AddEntitiesVisibleFromPoint( org, frame, &entityNumbers, qfalse, clientNum );
 
 	// if there were portals visible, there may be out of order entities
 	// in the list which will need to be resorted for the delta compression
@@ -857,6 +956,8 @@ void SV_SendClientMessages( void ) {
 	int			i;
 	client_t	*c;
 
+
+	g_frameIndex = ++g_frameIndex % sv_maxclients->integer;
 	// send a message to each connected client
 	for (i=0, c = svs.clients ; i < sv_maxclients->integer ; i++, c++) {
 		if (!c->state) {

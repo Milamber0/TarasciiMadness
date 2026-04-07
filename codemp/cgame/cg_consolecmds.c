@@ -55,7 +55,7 @@ Keybinding command
 =================
 */
 static void CG_SizeUp_f (void) {
-	trap->Cvar_Set( "cg_viewsize", va( "%i", Q_min( cg_viewsize.integer + 10, 100 ) ) );
+	trap->Cvar_Set( "cg_viewsize", va( "%i", cg_viewsize.integer + 10 ) );
 }
 
 /*
@@ -66,7 +66,7 @@ Keybinding command
 =================
 */
 static void CG_SizeDown_f (void) {
-	trap->Cvar_Set( "cg_viewsize", va( "%i", Q_max( cg_viewsize.integer - 10, 30 ) ) );
+	trap->Cvar_Set( "cg_viewsize", va( "%i", cg_viewsize.integer - 10 ) );
 }
 
 /*
@@ -166,31 +166,31 @@ void CG_ClientList_f( void )
 
 static void CG_TellTarget_f( void ) {
 	int		clientNum;
-	char	command[MAX_SAY_TEXT+10];
-	char	message[MAX_SAY_TEXT];
+	char	command[128];
+	char	message[128];
 
 	clientNum = CG_CrosshairPlayer();
 	if ( clientNum == -1 ) {
 		return;
 	}
 
-	trap->Cmd_Args( message, sizeof(message) );
-	Com_sprintf( command, sizeof(command), "tell %i %s", clientNum, message );
+	trap->Cmd_Args( message, 128 );
+	Com_sprintf( command, 128, "tell %i %s", clientNum, message );
 	trap->SendClientCommand( command );
 }
 
 static void CG_TellAttacker_f( void ) {
 	int		clientNum;
-	char	command[MAX_SAY_TEXT + 10];
-	char	message[MAX_SAY_TEXT];
+	char	command[128];
+	char	message[128];
 
 	clientNum = CG_LastAttacker();
 	if ( clientNum == -1 ) {
 		return;
 	}
 
-	trap->Cmd_Args( message, sizeof(message) );
-	Com_sprintf( command, sizeof(command), "tell %i %s", clientNum, message );
+	trap->Cmd_Args( message, 128 );
+	Com_sprintf( command, 128, "tell %i %s", clientNum, message );
 	trap->SendClientCommand( command );
 }
 
@@ -280,6 +280,7 @@ int cmdcmp( const void *a, const void *b ) {
 	return Q_stricmp( (const char *)a, ((consoleCommand_t*)b)->cmd );
 }
 
+/* This array MUST be sorted correctly by alphabetical name field */
 static consoleCommand_t	commands[] = {
 	{ "+scores",					CG_ScoresDown_f },
 	{ "-scores",					CG_ScoresUp_f },
@@ -324,9 +325,9 @@ Cmd_Argc() / Cmd_Argv()
 qboolean CG_ConsoleCommand( void ) {
 	consoleCommand_t	*command = NULL;
 
-	command = (consoleCommand_t *)Q_LinearSearch( CG_Argv( 0 ), commands, numCommands, sizeof( commands[0] ), cmdcmp );
+	command = (consoleCommand_t *)bsearch( CG_Argv( 0 ), commands, numCommands, sizeof( commands[0] ), cmdcmp );
 
-	if ( !command || !command->func )
+	if ( !command )
 		return qfalse;
 
 	command->func();
@@ -378,7 +379,7 @@ so it can perform tab completion
 void CG_InitConsoleCommands( void ) {
 	size_t i;
 
-	for ( i = 0; i < numCommands; i++ )
+	for ( i = 0 ; i < numCommands ; i++ )
 		trap->AddCommand( commands[i].cmd );
 
 	//

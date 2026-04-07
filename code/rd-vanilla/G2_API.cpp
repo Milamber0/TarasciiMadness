@@ -27,7 +27,6 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 #include "../qcommon/q_shared.h"
 #include "tr_local.h"
-#include "tr_common.h"
 #include "../ghoul2/G2.h"
 #include "../qcommon/MiniHeap.h"
 
@@ -83,7 +82,7 @@ public:
 		Com_DPrintf(mess);
 
 		std::map<std::string,int>::iterator i;
-		for (i=mErrors.begin();i!=mErrors.end();++i)
+		for (i=mErrors.begin();i!=mErrors.end();i++)
 		{
 			total+=(*i).second;
 			sprintf(mess,"%s (hits %d)\n",(*i).first.c_str(),(*i).second);
@@ -571,7 +570,7 @@ public:
 			for (i=0;i<MAX_G2_MODELS;i++)
 			{
 				std::list<int>::iterator j;
-				for (j=mFreeIndecies.begin();j!=mFreeIndecies.end();++j)
+				for (j=mFreeIndecies.begin();j!=mFreeIndecies.end();j++)
 				{
 					if (*j==i)
 						break;
@@ -729,7 +728,7 @@ void RestoreGhoul2InfoArray()
 		size_t read =
 #endif // _DEBUG
 			singleton->Deserialize ((const char *)data, size);
-		R_Free ((void *)data);
+		Z_Free ((void *)data);
 
 		assert (read == size);
 	}
@@ -738,7 +737,7 @@ void RestoreGhoul2InfoArray()
 void SaveGhoul2InfoArray()
 {
 	size_t size = singleton->GetSerializedSize();
-	void *data = R_Malloc (size, TAG_GHOUL2, qfalse);
+	void *data = Z_Malloc (size, TAG_GHOUL2, qfalse);
 #ifdef _DEBUG
 	size_t written =
 #endif // _DEBUG
@@ -1815,7 +1814,7 @@ void G2API_ListBones(CGhoul2Info *ghlInfo, int frame)
 // decide if we have Ghoul2 models associated with this ghoul list or not
 qboolean G2API_HaveWeGhoul2Models(CGhoul2Info_v &ghoul2)
 {
-	return (qboolean)ghoul2.IsValid();
+	return !!ghoul2.IsValid();
 }
 
 // run through the Ghoul2 models and set each of the mModel values to the correct one from the cgs.gameModel offset lsit

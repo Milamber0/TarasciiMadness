@@ -456,13 +456,6 @@ Adds score to both the client and his team
 extern qboolean g_dontPenalizeTeam; //g_cmds.c
 void AddScore( gentity_t *ent, vec3_t origin, int score )
 {
-	/*
-	if (level.gametype == GT_SIEGE)
-	{ //no scoring in this gametype at all.
-		return;
-	}
-	*/
-
 	if ( !ent->client ) {
 		return;
 	}
@@ -470,9 +463,22 @@ void AddScore( gentity_t *ent, vec3_t origin, int score )
 	if ( level.warmupTime ) {
 		return;
 	}
-	// show score plum
-	//ScorePlum(ent, origin, score);
-	//
+
+#ifdef TARASCIIMADNESS
+	// TarasciiMadness scoring:
+	// - Barrel self-kill: no score change (don't penalize explosion suicide)
+	// - Barrel kills human: +1 barrel
+	// - Human kills barrel: +1 human
+	// - Negative scores ignored for barrels
+	if (level.gametype == GT_TEAM)
+	{
+		if (score < 0 && ent->client->sess.sessionTeam == TEAM_RED) {
+			// Barrel player — never lose points (self-kill, suicide, etc.)
+			return;
+		}
+	}
+#endif
+
 	ent->client->ps.persistant[PERS_SCORE] += score;
 	if ( level.gametype == GT_TEAM && !g_dontPenalizeTeam )
 		level.teamScores[ ent->client->ps.persistant[PERS_TEAM] ] += score;
@@ -593,8 +599,10 @@ void TossClientItems( gentity_t *self ) {
 	gentity_t	*drop;
 
 	//TarasciiMadness turned off weapons dropping on my gametype.
+#if defined(TARASCIIMADNESS)
 	return;
-#if 0
+#else	
+
 	if (level.gametype == GT_SIEGE)
 	{ //just don't drop anything then
 		return;
@@ -655,7 +663,7 @@ void TossClientItems( gentity_t *self ) {
 			}
 		}
 	}
-#endif
+	#endif
 }
 
 
@@ -2429,6 +2437,7 @@ extern void RunEmplacedWeapon( gentity_t *ent, usercmd_t **ucmd );
 
 	//if he was charging or anything else, kill the sound
 	G_MuteSound(self->s.number, CHAN_WEAPON);
+	G_MuteSound(self->s.number, CHAN_VOICE); //TarasciiMadness remove death sounds
 
 	//FIXME: this may not be enough
 	if ( level.gametype == GT_SIEGE && meansOfDeath == MOD_TEAM_CHANGE )
@@ -5532,7 +5541,7 @@ void G_Damage( gentity_t *targ, gentity_t *inflictor, gentity_t *attacker, vec3_
 			targ->die (targ, inflictor, attacker, take, mod);
 			G_ActivateBehavior( targ, BSET_DEATH );
 
-			//TarasciiMadness barrel explosion damage.
+#ifdef TARASCIIMADNESS
 			if (targ->client)
 			{
 				if (targ->client->sess.sessionTeam == TEAM_RED && damage > targ->client->ps.stats[STAT_HEALTH] && targ->playerState->duelTime)
@@ -5558,12 +5567,13 @@ void G_Damage( gentity_t *targ, gentity_t *inflictor, gentity_t *attacker, vec3_
 					targ->client->ps.eFlags |= EF_NODRAW;
 					targ->client->noCorpse = qtrue;
 
-					barrel = &g_entities[targ->playerState->duelIndex];	
+					barrel = &g_entities[targ->playerState->duelIndex];
 					G_FreeEntity(barrel); //remove barrel corpse
 
 					Tarascii_ResetEplodeClick(targ->s.clientNum);
 				}
 			}
+#endif
 
 			return;
 		}
@@ -5596,7 +5606,6 @@ void G_Damage( gentity_t *targ, gentity_t *inflictor, gentity_t *attacker, vec3_
 
 		G_LogWeaponDamage(attacker->s.number, mod, take);
 	}
-
 }
 
 

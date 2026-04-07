@@ -267,9 +267,9 @@ static void CG_DrawZoomMask( void )
 		CG_DrawPic( 82, 94, 16, 16, cgs.media.binocularCircle );
 
 		// Flickery color
-		color1[0] = 0.7f + Q_flrand(-0.1f, 0.1f);
-		color1[1] = 0.8f + Q_flrand(-0.1f, 0.1f);
-		color1[2] = 0.7f + Q_flrand(-0.1f, 0.1f);
+		color1[0] = 0.7f + crandom() * 0.1f;
+		color1[1] = 0.8f + crandom() * 0.1f;
+		color1[2] = 0.7f + crandom() * 0.1f;
 		color1[3] = 1.0f;
 		trap->R_SetColor( color1 );
 
@@ -287,7 +287,7 @@ static void CG_DrawZoomMask( void )
 			CG_DrawPic( 307, 40, 26, 30, cgs.media.binocularTri );
 		}
 
-		if ( Q_flrand(0.0f, 1.0f) > 0.98f && ( cg.time & 1024 ))
+		if ( random() > 0.98f && ( cg.time & 1024 ))
 		{
 			flip = !flip;
 		}
@@ -340,8 +340,8 @@ static void CG_DrawZoomMask( void )
 		val[4] = (ammo / 625) % 5;
 
 		color1[0] = 0.2f;
-		color1[1] = 0.55f + Q_flrand(-1.0f, 1.0f) * 0.1f;
-		color1[2] = 0.5f + Q_flrand(-1.0f, 1.0f) * 0.1f;
+		color1[1] = 0.55f + crandom() * 0.1f;
+		color1[2] = 0.5f + crandom() * 0.1f;
 		color1[3] = 1.0f;
 		trap->R_SetColor( color1 );
 
@@ -5317,6 +5317,33 @@ qboolean CG_WorldCoordToScreenCoordFloat(vec3_t worldCoord, float *x, float *y)
     return qtrue;
 }
 
+#if 1 //TarasciiMadness stolen CG_WorldCoordToSCreenCoord from EJK
+qboolean CG_WorldCoordToScreenCoord(vec3_t worldCoord, float* x, float* y)
+{
+	vec3_t trans;
+	float xc, yc;
+	float px, py;
+	float z;
+
+	px = tan(cg.refdef.fov_x * (M_PI / 360));
+	py = tan(cg.refdef.fov_y * (M_PI / 360));
+
+	VectorSubtract(worldCoord, cg.refdef.vieworg, trans);
+
+	xc = SCREEN_WIDTH / 2.0;
+	yc = SCREEN_HEIGHT / 2.0;
+
+	// z = how far is the object in our forward direction
+	z = DotProduct(trans, cg.refdef.viewaxis[0]);
+	if (z <= 0.001)
+		return qfalse;
+
+	*x = xc - DotProduct(trans, cg.refdef.viewaxis[1]) * xc / (z * px);
+	*y = yc - DotProduct(trans, cg.refdef.viewaxis[2]) * yc / (z * py);
+
+	return qtrue;
+}
+#else
 qboolean CG_WorldCoordToScreenCoord( vec3_t worldCoord, int *x, int *y ) {
 	float xF, yF;
 
@@ -5328,7 +5355,7 @@ qboolean CG_WorldCoordToScreenCoord( vec3_t worldCoord, int *x, int *y ) {
 
 	return qfalse;
 }
-
+#endif
 /*
 ====================
 CG_SaberClashFlare
@@ -5340,7 +5367,7 @@ void CG_SaberClashFlare( void )
 {
 	int				t, maxTime = 150;
 	vec3_t dif;
-	vec4_t color;
+	vec3_t color;
 	int x,y;
 	float v, len;
 	trace_t tr;
@@ -5387,11 +5414,9 @@ void CG_SaberClashFlare( void )
 		v = 0.001f;
 	}
 
-	if ( !CG_WorldCoordToScreenCoord( cg_saberFlashPos, &x, &y ) ) {
-		return;
-	}
+	CG_WorldCoordToScreenCoord( cg_saberFlashPos, &x, &y );
 
-	VectorSet4( color, 0.8f, 0.8f, 0.8f, 1.0f );
+	VectorSet( color, 0.8f, 0.8f, 0.8f );
 	trap->R_SetColor( color );
 
 	CG_DrawPic( x - ( v * 300 ), y - ( v * 300 ),
@@ -7943,6 +7968,49 @@ static void CG_Draw2DScreenTints( void )
 	}
 }
 
+static void CG_TM_PlayerLabels(void)
+{
+	int i;
+	for (i = 0; i < MAX_CLIENTS; i++) {
+		vec3_t		pos;
+		float		x, y;
+		trace_t		trace;
+		centity_t* cent = &cg_entities[i];
+		vec3_t		diff;
+
+		if (!cent || !cent->currentValid)
+			continue;
+		if (i == cg.clientNum)
+			continue;
+		if (i == cg.snap->ps.clientNum)
+			continue;
+		if (cent->currentState.eFlags & EF_DEAD)
+			continue;
+		if (cent->currentState.eType != ET_PLAYER)
+			continue;
+		if (!cgs.clientinfo[i].infoValid)
+			continue;
+		if (cgs.clientinfo[i].team == TEAM_SPECTATOR)
+			continue;
+
+		VectorSubtract(cent->lerpOrigin, cg.predictedPlayerState.origin, diff);
+		//if (VectorLength(diff) >= 3000) //Make sure distance is less than... 3000 ?
+		//	continue;
+
+		CG_Trace(&trace, cg.predictedPlayerState.origin, NULL, NULL, cent->lerpOrigin, cg.clientNum, CONTENTS_SOLID | CONTENTS_BODY);
+		//if (trace.entityNum == ENTITYNUM_WORLD)
+		//	continue;
+
+		VectorCopy(cent->lerpOrigin, pos);
+		pos[2] += 64;
+
+		if (!CG_WorldCoordToScreenCoord(pos, &x, &y)) //off-screen, don't draw it
+			continue;
+		vec4_t color = { 1, 1, 1, 0.75 };
+		CG_DrawScaledProportionalString(x, y, cgs.clientinfo[i].name, UI_CENTER, color, 0.5);
+	}
+}
+
 static void CG_Draw2D( void ) {
 	float			inTime = cg.invenSelectTime+WEAPON_SELECT_TIME;
 	float			wpTime = cg.weaponSelectTime+WEAPON_SELECT_TIME;
@@ -7991,6 +8059,95 @@ static void CG_Draw2D( void ) {
 	}
 
 	CG_Draw2DScreenTints();
+
+	// TarasciiMadness: enforce disabled HUD elements
+	if (cgs.gametype == GT_TEAM) {
+		if (cg_drawTeamOverlay.integer) trap->Cvar_Set("cg_drawTeamOverlay", "0");
+		if (cg_drawRadar.integer) trap->Cvar_Set("cg_drawRadar", "0");
+		if (cg_drawScores.integer) trap->Cvar_Set("cg_drawScores", "0");
+	}
+
+	// TarasciiMadness: draw round timer with team counts on each side
+	if (cgs.gametype == GT_TEAM)
+	{
+		extern vmCvar_t tm_barrelModelMode;
+		qboolean infiniteTime = (qboolean)(cgs.timelimit <= 0);
+		int msRaw = infiniteTime ? 0 : (cgs.timelimit * 60 * 1000) - (cg.time - cgs.levelStartTime);
+		int msRemaining = msRaw;
+		if (msRemaining < 0) msRemaining = 0;
+		int seconds = (msRemaining / 1000) % 60;
+		int minutes = msRemaining / 60000;
+		qboolean roundEnding = (qboolean)(!infiniteTime && msRaw < 0);
+
+		// Count teams
+		int survivors = 0, barrels = 0;
+		for (int i = 0; i < cgs.maxclients; i++) {
+			if (cgs.clientinfo[i].infoValid) {
+				if (cgs.clientinfo[i].team == TEAM_BLUE) survivors++;
+				else if (cgs.clientinfo[i].team == TEAM_RED) barrels++;
+			}
+		}
+
+		// Also detect round ending from win conditions (all humans or all barrels eliminated)
+		if (survivors == 0 || barrels == 0) roundEnding = qtrue;
+
+		// Timer centered
+		const char *timerStr;
+		int timerWidth, timerX;
+		vec4_t timerColor;
+
+		{
+			static int celebrationStart = 0;
+			static qboolean wasCelebrating = qfalse;
+
+			if (roundEnding) {
+				if (!wasCelebrating) {
+					celebrationStart = cg.time;
+					wasCelebrating = qtrue;
+				}
+				int celebMs = 10000 - (cg.time - celebrationStart);
+				if (celebMs < 0) celebMs = 0;
+				int celebSec = (celebMs + 999) / 1000;
+				timerStr = va("%d", celebSec);
+				timerColor[0] = 0.2f; timerColor[1] = 1.0f; timerColor[2] = 0.2f; timerColor[3] = 1.0f;
+			} else {
+				wasCelebrating = qfalse;
+				if (infiniteTime) {
+					timerStr = "-:--";
+					timerColor[0] = 0.6f; timerColor[1] = 0.6f; timerColor[2] = 0.6f; timerColor[3] = 0.6f;
+				} else if (msRemaining < 30000) {
+					timerStr = va("%d:%02d", minutes, seconds);
+					timerColor[0] = 1.0f; timerColor[1] = 0.2f; timerColor[2] = 0.2f; timerColor[3] = 1.0f;
+				} else {
+					timerStr = va("%d:%02d", minutes, seconds);
+					timerColor[0] = 1.0f; timerColor[1] = 1.0f; timerColor[2] = 1.0f; timerColor[3] = 0.8f;
+				}
+			}
+		}
+		timerWidth = CG_DrawStrlen(timerStr) * 12;
+		timerX = 320 - timerWidth / 2;
+		CG_DrawStringExt(timerX, 28, timerStr, timerColor, qfalse, qtrue, 12, 16, -1);
+
+		// Survivors on the left
+		const char *survStr = va("Survivors: %d", survivors);
+		int survWidth = CG_DrawStrlen(survStr) * 10;
+		vec4_t survColor = {0.4f, 0.8f, 1.0f, 0.9f};
+		CG_DrawStringExt(timerX - survWidth - 12, 30, survStr, survColor, qfalse, qtrue, 10, 14, -1);
+
+		// Determine barrel/egg mode by checking any barrel entity's userInt2 flag
+		const char *barrelName = "Barrels";
+		for (int i = 0; i < MAX_GENTITIES; i++) {
+			if (cg_entities[i].currentState.eType == ET_MOVER &&
+				(cg_entities[i].currentState.userInt1 || cg_entities[i].currentState.userInt2)) {
+				barrelName = cg_entities[i].currentState.userInt2 ? "Eggs" : "Barrels";
+				break;
+			}
+		}
+		const char *barrelStr = va("%s: %d", barrelName, barrels);
+		vec4_t barrelColor = {1.0f, 0.4f, 0.4f, 0.9f};
+		CG_DrawStringExt(timerX + timerWidth + 12, 30, barrelStr, barrelColor, qfalse, qtrue, 10, 14, -1);
+	}
+
 
 	if (cg.snap->ps.rocketLockIndex != ENTITYNUM_NONE && (cg.time - cg.snap->ps.rocketLockTime) > 0)
 	{
@@ -8342,6 +8499,11 @@ static void CG_Draw2D( void ) {
 
 	// always draw chat
 	CG_ChatBox_DrawStrings();
+
+	if (cg.snap->ps.persistant[PERS_TEAM] == TEAM_RED && pm->cmd.buttons&BUTTON_ALT_ATTACK) //TarasciiMadness Start draw player names
+	{
+		CG_TM_PlayerLabels();
+	}
 }
 
 qboolean CG_CullPointAndRadius( const vec3_t pt, float radius);

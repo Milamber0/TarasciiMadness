@@ -106,7 +106,7 @@ void CParticle::Die()
 		vec3_t	norm;
 
 		// Man, this just seems so, like, uncool and stuff...
-		VectorSet( norm, Q_flrand(-1.0f, 1.0f), Q_flrand(-1.0f, 1.0f), Q_flrand(-1.0f, 1.0f));
+		VectorSet( norm, crandom(), crandom(), crandom());
 		VectorNormalize( norm );
 
 		theFxScheduler.PlayEffect( mDeathFxID, mOrigin1, norm );
@@ -307,12 +307,9 @@ bool CParticle::UpdateOrigin()
 				}
 			}
 
-			if ( trace.startsolid || trace.allsolid || trace.fraction == 1.0)
+			// Hit something
+			if ( trace.fraction < 1.0f )//|| trace.startsolid || trace.allsolid )
 			{
-			}
-			else
-			{
-				// Hit something
 				if ( mFlags & FX_IMPACT_RUNS_FX && !(trace.surfaceFlags & SURF_NOIMPACT ))
 				{
 					theFxScheduler.PlayEffect( mImpactFxID, trace.endpos, trace.plane.normal );
@@ -425,7 +422,7 @@ void CParticle::UpdateSize()
 	if (( mFlags & FX_SIZE_RAND ))
 	{
 		// Random simply modulates the existing value
-		perc1 = Q_flrand(0.0f, 1.0f) * perc1;
+		perc1 = random() * perc1;
 	}
 
 	mRefEnt.radius = (mSizeStart * perc1) + (mSizeEnd * (1.0f - perc1));
@@ -502,7 +499,7 @@ void CParticle::UpdateRGB()
 	if (( mFlags & FX_RGB_RAND ))
 	{
 		// Random simply modulates the existing value
-		perc1 = Q_flrand(0.0f, 1.0f) * perc1;
+		perc1 = random() * perc1;
 	}
 
 	// Now get the correct color
@@ -593,7 +590,7 @@ void CParticle::UpdateAlpha()
 	if ( (mFlags & FX_ALPHA_RAND) )
 	{
 		// Random simply modulates the existing value
-		perc1 = Q_flrand(0.0f, 1.0f) * perc1;
+		perc1 = random() * perc1;
 	}
 
 	if ( mFlags & FX_USE_ALPHA )
@@ -860,7 +857,7 @@ bool CLine::Update()
 //----------------------------
 void CElectricity::Initialize()
 {
-	mRefEnt.frame = Q_flrand(0.0f, 1.0f) * 1265536;
+	mRefEnt.frame = random() * 1265536;
 	mRefEnt.endTime = cg.time + (mTimeEnd - mTimeStart);
 
 	if ( mFlags & FX_DEPTH_HACK )
@@ -1158,7 +1155,7 @@ void CTail::UpdateLength()
 	if ( mFlags & FX_LENGTH_RAND )
 	{
 		// Random simply modulates the existing value
-		perc1 = Q_flrand(0.0f, 1.0f) * perc1;
+		perc1 = random() * perc1;
 	}
 
 	mLength = (mLengthStart * perc1) + (mLengthEnd * (1.0f - perc1));
@@ -1270,7 +1267,7 @@ void CCylinder::UpdateSize2()
 	if ( mFlags & FX_SIZE2_RAND )
 	{
 		// Random simply modulates the existing value
-		perc1 = Q_flrand(0.0f, 1.0f) * perc1;
+		perc1 = random() * perc1;
 	}
 
 	mRefEnt.backlerp = (mSize2Start * perc1) + (mSize2End * (1.0f - perc1));
@@ -1376,7 +1373,7 @@ void CEmitter::Draw()
 #define TRAIL_RATE		8 // we "think" at about a 60hz rate
 
 		// Pick a target step distance and square it
-		step = mDensity + Q_flrand(-1.0f, 1.0f) * mVariance;
+		step = mDensity + crandom() * mVariance;
 		step *= step;
 
 		dif = 0;
@@ -1439,7 +1436,7 @@ void CEmitter::Draw()
 			if ( DistanceSquared( org, mOldOrigin ) >= step )
 			{
 				// Pick a new target step distance and square it
-				step = mDensity + Q_flrand(-1.0f, 1.0f) * mVariance;
+				step = mDensity + crandom() * mVariance;
 				step *= step;
 
 				// We met the step criteria so, we should add in the effect
@@ -1623,7 +1620,7 @@ void CLight::UpdateSize()
 	if ( mFlags & FX_SIZE_RAND )
 	{
 		// Random simply modulates the existing value
-		perc1 = Q_flrand(0.0f, 1.0f) * perc1;
+		perc1 = random() * perc1;
 	}
 
 	mRefEnt.radius = (mSizeStart * perc1) + (mSizeEnd * (1.0f - perc1));
@@ -1700,7 +1697,7 @@ void CLight::UpdateRGB()
 	if ( mFlags & FX_RGB_RAND )
 	{
 		// Random simply modulates the existing value
-		perc1 = Q_flrand(0.0f, 1.0f) * perc1;
+		perc1 = random() * perc1;
 	}
 
 	// Now get the correct color
@@ -2102,7 +2099,7 @@ bool CBezier::Update( void )
 }
 
 //----------------------------
-void CBezier::DrawSegment( vec3_t start, vec3_t end, float texcoord1, float texcoord2 )
+inline void CBezier::DrawSegment( vec3_t start, vec3_t end, float texcoord1, float texcoord2 )
 {
 	vec3_t			lineDir, cross, viewDir;
 	static vec3_t	lastEnd[2];

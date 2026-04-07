@@ -705,7 +705,7 @@ void CG_Disintegration(centity_t *cent, refEntity_t *ent)
 	ent->customShader = 0;
 	trap->R_AddRefEntityToScene( ent );
 
-	if ( cg.time - ent->endTime < 1000 && (timescale.value * timescale.value * Q_flrand(0.0f, 1.0f)) > 0.05f )
+	if ( cg.time - ent->endTime < 1000 && (timescale.value * timescale.value * random()) > 0.05f )
 	{
 		vec3_t fxOrg, fxDir;
 		mdxaBone_t	boltMatrix;
@@ -718,10 +718,10 @@ void CG_Disintegration(centity_t *cent, refEntity_t *ent)
 				BG_GiveMeVectorFromMatrix( &boltMatrix, ORIGIN, fxOrg );
 
 		VectorMA( fxOrg, -18, cg.refdef.viewaxis[0], fxOrg );
-		fxOrg[2] += Q_flrand(-1.0f, 1.0f) * 20;
+		fxOrg[2] += crandom() * 20;
 		trap->FX_PlayEffectID( cgs.effects.mDisruptorDeathSmoke, fxOrg, fxDir, -1, -1, qfalse );
 
-		if ( Q_flrand(0.0f, 1.0f) > 0.5f )
+		if ( random() > 0.5f )
 		{
 			trap->FX_PlayEffectID( cgs.effects.mDisruptorDeathSmoke, fxOrg, fxDir, -1, -1, qfalse );
 		}
@@ -1611,7 +1611,7 @@ Ghoul2 Insert End
 					{
 						ent.customShader = cgs.media.electricBody2Shader;
 					}
-					if ( Q_flrand(0.0f, 1.0f) > 0.9f )
+					if ( random() > 0.9f )
 					{
 						trap->S_StartSound ( NULL, cent->currentState.number, CHAN_AUTO, cgs.media.crackleSound );
 					}
@@ -1854,7 +1854,7 @@ static void CG_Speaker( centity_t *cent ) {
 
 	//	ent->s.frame = ent->wait * 10;
 	//	ent->s.clientNum = ent->random * 10;
-	cent->miscTime = cg.time + cent->currentState.frame * 100 + cent->currentState.clientNum * 100 * Q_flrand(-1.0f, 1.0f);
+	cent->miscTime = cg.time + cent->currentState.frame * 100 + cent->currentState.clientNum * 100 * crandom();
 }
 
 qboolean CG_GreyItem(int type, int tag, int plSide)
@@ -2831,6 +2831,13 @@ static void CG_Mover( centity_t *cent ) {
 
 	s1 = &cent->currentState;
 
+	// TarasciiMadness: smooth remote barrel movement via interpolation
+	// Local player's barrel is handled by client prediction (BarrelMove in Pmove)
+	if (s1->clientNum && (s1->clientNum - 1) != cg.snap->ps.clientNum) {
+		s1->pos.trType = TR_INTERPOLATE;
+		s1->apos.trType = TR_INTERPOLATE;
+	}
+
 	// create the render entity
 	memset (&ent, 0, sizeof(ent));
 
@@ -2910,6 +2917,34 @@ Ghoul2 Insert End
 	// add the secondary model
 	if ( s1->modelindex2 && s1->modelindex2 < MAX_MODELS )
 	{
+		if (s1->userInt1 || s1->userInt2)
+		{
+			if (s1->clientNum)
+			{
+				cg_entities[s1->clientNum - 1].playerState->duelIndex = s1->number;
+			}
+
+			if (s1->userInt1 == 1)
+			{
+				s1->modelindex2 = s1->boneIndex1;
+			}
+			if (s1->userInt2 == 1)
+			{
+				s1->iModelScale = 100;
+				srand(s1->number);
+				int randomNum = (rand() % 20 + 1);
+				//Com_Printf("ent num: %d, random num: %d\n", s1->groundEntityNum, randomNum);
+				if (randomNum <= 5)
+					s1->modelindex2 = s1->boneIndex2;
+				else if( randomNum > 5 && randomNum <= 10)
+					s1->modelindex2 = s1->boneIndex3;
+				else if (randomNum > 10 && randomNum <= 15)
+					s1->modelindex2 = s1->boneIndex4;
+				else
+					s1->modelindex2 = s1->boneOrient;
+			}
+		}
+
 		ent.skinNum = 0;
 		ent.hModel = cgs.gameModels[s1->modelindex2];
 		if (s1->iModelScale)
@@ -3239,7 +3274,7 @@ static void CG_FX( centity_t *cent )
 		cent->muzzleFlashTime = s1->modelindex2;
 	}
 
-	cent->miscTime = cg.time + s1->speed + Q_flrand(0.0f, 1.0f) * s1->time;
+	cent->miscTime = cg.time + s1->speed + random() * s1->time;
 
 	AngleVectors(s1->angles, fxDir, 0, 0);
 

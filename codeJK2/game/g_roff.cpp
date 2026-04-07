@@ -396,11 +396,11 @@ qboolean G_InitRoff( char *file, unsigned char *data )
 		}
 		else
 		{
-			return qfalse;
+			return false;
 		}
 	}
 
-	return qtrue;
+	return true;
 }
 
 //-------------------------------------------------------

@@ -1167,6 +1167,10 @@ of ent.  Ent should be unlinked before calling this!
 =================
 */
 void G_KillBox (gentity_t *ent) {
+#ifdef TARASCIIMADNESS
+	// TarasciiMadness: no telefragging on spawn — anti-stuck system handles overlap
+	return;
+#else
 	int			i, num;
 	int			touch[MAX_GENTITIES];
 	gentity_t	*hit;
@@ -1196,7 +1200,7 @@ void G_KillBox (gentity_t *ent) {
 		G_Damage ( hit, ent, ent, NULL, NULL,
 			100000, DAMAGE_NO_PROTECTION, MOD_TELEFRAG);
 	}
-
+#endif
 }
 
 //==============================================================================
@@ -2283,4 +2287,12 @@ float ShortestLineSegBewteen2LineSegs( vec3_t start1, vec3_t end1, vec3_t start2
 	}
 
 	return current_dist;
+}
+
+void GetAnglesForDirection( const vec3_t p1, const vec3_t p2, vec3_t out )
+{
+	vec3_t v;
+
+	VectorSubtract( p2, p1, v );
+	vectoangles( v, out );
 }

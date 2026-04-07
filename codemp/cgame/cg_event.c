@@ -691,6 +691,15 @@ void CG_PainEvent( centity_t *cent, int health ) {
 		return;
 	}
 
+	if (cent->currentState.number < MAX_CLIENTS) //TarasciiMadness don't do damage sounds for barrels
+	{
+		if (cgs.clientinfo[cent->currentState.clientNum].team == TEAM_RED)
+		{
+			return;
+		}
+	}
+
+
 	if ( health < 25 ) {
 		snd = "*pain25.wav";
 	} else if ( health < 50 ) {
@@ -938,19 +947,18 @@ void DoFall(centity_t *cent, entityState_t *es, int clientNum)
 			trap->S_StartSound (NULL, es->number, CHAN_AUTO, trap->S_RegisterSound( "sound/movers/objects/objectHit.wav" ) );
 		}
 	}
-	else if (delta > 50)
-	{
-		trap->S_StartSound (NULL, es->number, CHAN_AUTO, cgs.media.fallSound );
-		trap->S_StartSound( NULL, cent->currentState.number, CHAN_VOICE,
-			CG_CustomSound( cent->currentState.number, "*land1.wav" ) );
-		cent->pe.painTime = cg.time;	// don't play a pain sound right after this
-	}
 	else if (delta > 44)
 	{
-		trap->S_StartSound (NULL, es->number, CHAN_AUTO, cgs.media.fallSound );
-		trap->S_StartSound( NULL, cent->currentState.number, CHAN_VOICE,
-			CG_CustomSound( cent->currentState.number, "*land1.wav" ) );
-		cent->pe.painTime = cg.time;	// don't play a pain sound right after this
+		trap->S_StartSound(NULL, es->number, CHAN_AUTO, cgs.media.fallSound);
+		if (cent->currentState.number < MAX_CLIENTS) //TarasciiMadness do damage sounds only for players not barrels
+		{
+			if (cgs.clientinfo[cent->currentState.clientNum].team == TEAM_BLUE)
+			{
+				trap->S_StartSound(NULL, cent->currentState.number, CHAN_VOICE,
+					CG_CustomSound(cent->currentState.number, "*land1.wav"));
+				cent->pe.painTime = cg.time;	// don't play a pain sound right after this
+			}
+		}
 	}
 	else
 	{
@@ -1572,7 +1580,13 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 			DoFall(cent, es, clientNum);
 		}
 
-		trap->S_StartSound (NULL, es->number, CHAN_VOICE, CG_CustomSound( es->number, "*jump1.wav" ) );
+		if (cent->currentState.number < MAX_CLIENTS) //TarasciiMadness only do roll sound for players
+		{
+			if (cgs.clientinfo[cent->currentState.clientNum].team == TEAM_BLUE)
+			{
+				trap->S_StartSound(NULL, es->number, CHAN_VOICE, CG_CustomSound(es->number, "*jump1.wav"));
+			}
+		}
 		trap->S_StartSound( NULL, es->number, CHAN_BODY, cgs.media.rollSound  );
 
 		//FIXME: need some sort of body impact on ground sound and maybe kick up some dust?
@@ -1590,7 +1604,59 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 				&& cgs.gametype != GT_POWERDUEL
 				&& es->eventParm == TAUNT_TAUNT )
 			{//normal taunt
-				soundIndex = CG_CustomSound( es->number, "*taunt.wav" );
+				//if (cent->playerState->persistant[PERS_TEAM] == TEAM_BLUE)//TarasciiMadness do normal taunts for non barrel players.
+				if (cgs.clientinfo[cent->currentState.clientNum].team == TEAM_BLUE)//TarasciiMadness do normal taunts for non barrel players.
+				{
+					soundIndex = CG_CustomSound(es->number, "*taunt.wav");
+				}
+				else
+				{
+					srand(cent->playerState->duelIndex);
+					int randomNum = (rand() % 20 + 1);
+					int result = 0;
+					if (randomNum <= 5)
+						result = 1; //Stormtrooper
+					else if (randomNum > 5 && randomNum <= 10)
+						result = 2; //Vader
+					else if (randomNum > 10 && randomNum <= 15)
+						result = 3; //Yoda
+					else
+						result = 4; //C3po
+
+					//Com_Printf("index: %i, model: %i\n", cent->playerState->duelIndex, result);
+					switch (result)
+					{
+					case 1:
+					{
+						soundIndex = CG_CustomSound(es->number, va("sound/tarascii_madness/egg_stormtrooper/stormtrooper_%d.wav", Q_irand(1, 4)));
+						break;
+					}
+					case 2:
+					{
+						soundIndex = CG_CustomSound(es->number, va("sound/tarascii_madness/egg_vader/vader_%d.wav", Q_irand(1, 6)));
+						break;
+					}
+					case 3:
+					{
+						int num = Q_irand(0, 25);
+						//Com_Printf("num: %i\n", num);
+						if (!num)
+						{
+							soundIndex = CG_CustomSound(es->number, va("sound/tarascii_madness/egg_yoda/yoda_%d.wav", 0));
+						}
+						else
+						{
+							soundIndex = CG_CustomSound(es->number, va("sound/tarascii_madness/egg_yoda/yoda_%d.wav", Q_irand(1, 6)));
+						}
+						break;
+					}
+					case 4:
+					{
+						soundIndex = CG_CustomSound(es->number, va("sound/tarascii_madness/egg_c3po/c3po_%d.wav", Q_irand(1, 5)));
+						break;
+					}
+					}
+				}
 			}
 			else
 			{
@@ -2453,7 +2519,19 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 				VectorCopy(cg.lastFPFlashPoint, cent->currentState.origin2);
 			}
 		}
-		FX_DisruptorMainShot( cent->currentState.origin2, cent->lerpOrigin );
+		{
+			// Limit disruptor shot effects to avoid sound spam with many shooters
+			static int lastDisruptorTime = 0;
+			static int disruptorCount = 0;
+			if (cg.time != lastDisruptorTime) {
+				lastDisruptorTime = cg.time;
+				disruptorCount = 0;
+			}
+			if (disruptorCount < 4) { // max 4 shot effects per frame
+				FX_DisruptorMainShot( cent->currentState.origin2, cent->lerpOrigin );
+				disruptorCount++;
+			}
+		}
 		break;
 
 	case EV_DISRUPTOR_SNIPER_SHOT:

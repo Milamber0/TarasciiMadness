@@ -98,6 +98,7 @@ extern vec3_t gPainPoint;
 
 #define FL_BBRUSH					0x04000000 //I am a breakable brush
 
+//TarasciiMadness workaround to be able to draw debug boxes and lines. disable ifndef FINAL_BUILD to use.
 #ifndef FINAL_BUILD
 #define DEBUG_SABER_BOX
 #endif
@@ -471,6 +472,8 @@ typedef struct clientSession_s {
 	int			siegeDesiredTeam;
 
 	char		IP[NET_ADDRSTRMAXLEN];
+
+	qboolean	isAdmin; //TarasciiMadness
 } clientSession_t;
 
 // playerstate mGameFlags

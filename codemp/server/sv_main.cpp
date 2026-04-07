@@ -32,7 +32,7 @@ server_t		sv;					// local server
 
 cvar_t	*sv_snapsMin;			// minimum snapshots/sec a client can request, also limited by sv_snapsMax
 cvar_t	*sv_snapsMax;			// maximum snapshots/sec a client can request, also limited by sv_fps
-cvar_t	*sv_fps = NULL;				// time rate for running non-clients
+cvar_t	*sv_fps;				// time rate for running non-clients
 cvar_t	*sv_timeout;			// seconds without any message
 cvar_t	*sv_zombietime;			// seconds to sink messages after disconnect
 cvar_t	*sv_rconPassword;		// password for remote server commands
@@ -62,8 +62,10 @@ cvar_t	*sv_filterCommands; // strict filtering on commands (replace: \r \n ;)
 cvar_t	*sv_autoDemo;
 cvar_t	*sv_autoDemoBots;
 cvar_t	*sv_autoDemoMaxMaps;
-cvar_t	*sv_legacyFixForceSelect;
+cvar_t	*sv_blockJumpSelect;
 cvar_t	*sv_banFile;
+cvar_t	*sv_distanceCull;			//Entity distance cull optimized for tarasciiMadness
+
 
 serverBan_t serverBans[SERVER_MAXBANS];
 int serverBansCount = 0;
@@ -1017,29 +1019,12 @@ void SV_CheckCvars( void ) {
 			}
 		}
 	}
-}
 
-/*
-==================
-SV_FrameMsec
-Return time in millseconds until processing of the next server frame.
-==================
-*/
-int SV_FrameMsec()
-{
-	if(sv_fps)
+	if (sv_distanceCull->modified)
 	{
-		int frameMsec;
-
-		frameMsec = 1000.0f / sv_fps->value;
-
-		if(frameMsec < sv.timeResidual)
-			return 0;
-		else
-			return frameMsec - sv.timeResidual;
+		sv_distanceCull->modified = qfalse;
 	}
-	else
-		return 1;
+
 }
 
 /*
@@ -1085,6 +1070,13 @@ void SV_Frame( int msec ) {
 	sv.timeResidual += msec;
 
 	if (!com_dedicated->integer) SV_BotFrame( sv.time + sv.timeResidual );
+
+	if ( com_dedicated->integer && sv.timeResidual < frameMsec && (!com_timescale || com_timescale->value >= 1) ) {
+		// NET_Sleep will give the OS time slices until either get a packet
+		// or time enough for a server frame has gone by
+		NET_Sleep(frameMsec - sv.timeResidual);
+		return;
+	}
 
 	// if time is about to hit the 32nd bit, kick all clients
 	// and clear sv.time, rather

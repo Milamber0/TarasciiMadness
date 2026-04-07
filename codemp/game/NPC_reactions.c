@@ -138,7 +138,7 @@ static void NPC_CheckAttacker( gentity_t *other, int mod )
 		}
 
 		//Randomly pick up the target
-		if ( Q_flrand(0.0f, 1.0f) > luckThreshold )
+		if ( random() > luckThreshold )
 		{
 			G_ClearEnemy( other );
 			other->enemy = NPCS.NPC;
@@ -152,13 +152,17 @@ void NPC_SetPainEvent( gentity_t *self )
 {
 	if ( !self->NPC || !(self->NPC->aiFlags&NPCAI_DIE_ON_IMPACT) )
 	{
-		//if ( !Q3_TaskIDPending( self, TID_CHAN_VOICE ) )
-		if (!trap->ICARUS_TaskIDPending((sharedEntity_t *)self, TID_CHAN_VOICE) && self->client)
-		{
-			//G_AddEvent( self, EV_PAIN, floor((float)self->health/self->max_health*100.0f) );
-			G_AddEvent( self, EV_PAIN, floor((float)self->health/self->client->ps.stats[STAT_MAX_HEALTH]*100.0f) );
-			//rwwFIXMEFIXME: Do this properly?
-		}
+	// no more borg
+	//	if( self->client->playerTeam != TEAM_BORG )
+	//	{
+			//if ( !Q3_TaskIDPending( self, TID_CHAN_VOICE ) )
+			if (!trap->ICARUS_TaskIDPending((sharedEntity_t *)self, TID_CHAN_VOICE) && self->client)
+			{
+				//G_AddEvent( self, EV_PAIN, floor((float)self->health/self->max_health*100.0f) );
+				G_AddEvent( self, EV_PAIN, floor((float)self->health/self->client->ps.stats[STAT_MAX_HEALTH]*100.0f) );
+				//rwwFIXMEFIXME: Do this properly?
+			}
+	//	}
 	}
 }
 
@@ -285,7 +289,7 @@ void NPC_ChoosePainAnimation( gentity_t *self, gentity_t *other, vec3_t point, i
 	}
 
 	//See if we're going to flinch
-	if ( Q_flrand(0.0f, 1.0f) < pain_chance )
+	if ( random() < pain_chance )
 	{
 		int animLength;
 

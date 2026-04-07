@@ -1491,7 +1491,33 @@ static int NPC_GetRunSpeed( gentity_t *ent )
 
 	if ( ( ent->client == NULL ) || ( ent->NPC == NULL ) )
 		return 0;
+/*
+	switch ( ent->client->playerTeam )
+	{
+	case TEAM_BORG:
+		runSpeed = ent->NPC->stats.runSpeed;
+		runSpeed += BORG_RUN_INCR * (g_npcspskill->integer%3);
+		break;
 
+	case TEAM_8472:
+		runSpeed = ent->NPC->stats.runSpeed;
+		runSpeed += SPECIES_RUN_INCR * (g_npcspskill->integer%3);
+		break;
+
+	case TEAM_STASIS:
+		runSpeed = ent->NPC->stats.runSpeed;
+		runSpeed += STASIS_RUN_INCR * (g_npcspskill->integer%3);
+		break;
+
+	case TEAM_BOTS:
+		runSpeed = ent->NPC->stats.runSpeed;
+		break;
+
+	default:
+		runSpeed = ent->NPC->stats.runSpeed;
+		break;
+	}
+*/
 	// team no longer indicates species/race.  Use NPC_class to adjust speed for specific npc types
 	switch( ent->client->NPC_class)
 	{
@@ -2228,6 +2254,7 @@ void ClientThink_real( gentity_t *ent ) {
 						if ( ent->NPC->currentSpeed >= 80 && !controlledByPlayer )
 						{//At higher speeds, need to slow down close to stuff
 							//Slow down as you approach your goal
+						//	if ( ent->NPC->distToGoal < SLOWDOWN_DIST && client->race != RACE_BORG && !(ent->NPC->aiFlags&NPCAI_NO_SLOWDOWN) )//128
 							if ( ent->NPC->distToGoal < SLOWDOWN_DIST && !(ent->NPC->aiFlags&NPCAI_NO_SLOWDOWN) )//128
 							{
 								if ( ent->NPC->desiredSpeed > MIN_NPC_SPEED )
@@ -3059,8 +3086,8 @@ void ClientThink_real( gentity_t *ent ) {
 #endif
 	}
 
+	Tarascii_BarrelBound(ent, &pmove);
 	Pmove (&pmove);
-	Tarascii_BarrelBound(ent);
 
 	if (ent->client->solidHack)
 	{
@@ -3466,11 +3493,18 @@ void ClientThink_real( gentity_t *ent ) {
 		&& !(client->ps.eFlags2&EF2_HELD_BY_MONSTER)//can't respawn while being eaten
 		&& ent->s.eType != ET_NPC ) {
 
-		//TarasciiMadness if you were on the Human team upon death, move to Barrel team.
-		if (client->sess.sessionTeam == TEAM_BLUE)
-		{
-			SetTeamQuick(ent, TEAM_RED, qfalse);
-		}
+#ifdef TARASCIIMADNESS
+			if (client->sess.sessionTeam == TEAM_BLUE)
+			{
+				// Human killed — becomes a barrel. Reset score.
+				client->ps.persistant[PERS_SCORE] = 0;
+				SetTeamQuick(ent, TEAM_RED, qfalse);
+				if (!g_tState.barrelHintShown[ent->s.number]) {
+					g_tState.barrelHintShown[ent->s.number] = qtrue;
+					trap->SendServerCommand(ent->s.number, "cp \"^7Hold ^3Right Click ^7to see player names\"");
+				}
+			}
+#endif
 
 		// wait for the attack button to be pressed
 		if ( level.time > client->respawnTime && !gDoSlowMoDuel ) {

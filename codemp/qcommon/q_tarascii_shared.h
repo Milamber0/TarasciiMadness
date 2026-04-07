@@ -1,3 +1,3 @@
 #pragma once
 
-#define CLIENT_VERSION 1
+#define CLIENT_VERSION 1.4

@@ -456,6 +456,11 @@ typedef enum gameImportLegacy_e {
 	G_ICARUS_GETVECTORVARIABLE,
 	G_SET_SHARED_BUFFER,
 
+	// Heimdall: static decoration system
+	G_REGISTER_STATIC_DECORATION,	// (entityState_t *state) -> int id or -1
+	G_REMOVE_STATIC_DECORATION,		// (int id) -> void
+	G_UPDATE_STATIC_DECORATION,		// (int id, entityState_t *state) -> void
+
 	G_MEMSET = 100,
 	G_MEMCPY,
 	G_STRNCPY,
@@ -1093,6 +1098,11 @@ typedef struct gameImport_s {
 	void		(*G2API_CleanEntAttachments)			( void );
 	qboolean	(*G2API_OverrideServer)					( void *serverInstance );
 	void		(*G2API_GetSurfaceName)					( void *ghoul2, int surfNumber, int modelIndex, char *fillBuf );
+
+	// Heimdall: static decoration system (appended at end for compatibility)
+	int			(*RegisterStaticDecoration)				( entityState_t *state );
+	void		(*RemoveStaticDecoration)				( int id );
+	void		(*UpdateStaticDecoration)				( int id, entityState_t *state );
 } gameImport_t;
 
 typedef struct gameExport_s {

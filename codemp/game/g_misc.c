@@ -1173,10 +1173,10 @@ void Use_Shooter( gentity_t *ent, gentity_t *other, gentity_t *activator ) {
 	PerpendicularVector( up, dir );
 	CrossProduct( up, dir, right );
 
-	deg = Q_flrand(-1.0f, 1.0f) * ent->random;
+	deg = crandom() * ent->random;
 	VectorMA( dir, deg, up, dir );
 
-	deg = Q_flrand(-1.0f, 1.0f) * ent->random;
+	deg = crandom() * ent->random;
 	VectorMA( dir, deg, right, dir );
 
 	VectorNormalize( dir );
@@ -2333,7 +2333,7 @@ void fx_runner_think( gentity_t *ent )
 	VectorCopy(ent->r.currentAngles, ent->s.angles);
 	VectorCopy(ent->r.currentOrigin, ent->s.origin);
 
-	ent->nextthink = level.time + ent->delay + Q_flrand(0.0f, 1.0f) * ent->random;
+	ent->nextthink = level.time + ent->delay + random() * ent->random;
 
 	if ( ent->spawnflags & 4 ) // damage
 	{

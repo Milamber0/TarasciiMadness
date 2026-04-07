@@ -10,7 +10,7 @@
 void Tarascii_BarrelMove(playerState_t *predictedPS)
 {
 	bgEntity_t *barrel;
-	
+
    	if (predictedPS->duelIndex != ENTITYNUM_NONE && predictedPS->duelIndex != 0)
 	{
 		barrel = PM_BGEntForNum(predictedPS->duelIndex);

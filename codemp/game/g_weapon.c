@@ -529,8 +529,8 @@ static void WP_FireBlaster( gentity_t *ent, qboolean altFire )
 	if ( altFire )
 	{
 		// add some slop to the alt-fire direction
-		angs[PITCH] += Q_flrand(-1.0f, 1.0f) * BLASTER_SPREAD;
-		angs[YAW]       += Q_flrand(-1.0f, 1.0f) * BLASTER_SPREAD;
+		angs[PITCH] += crandom() * BLASTER_SPREAD;
+		angs[YAW]       += crandom() * BLASTER_SPREAD;
 	}
 
 	AngleVectors( angs, dir, NULL, NULL );
@@ -588,23 +588,22 @@ static void WP_DisruptorMainFire( gentity_t *ent )
 
 		traceEnt = &g_entities[tr.entityNum];
 
-		if (Q_stricmp(traceEnt->classname,"worldspawn") == 0)	//TarasciiMadness fix so that my red team player barrels can use a hitbox instead of a G2.
+		// TarasciiMadness: G2 trace misses barrel players (EF_NODRAW = no visible Ghoul2).
+		// Only do fallback if G2 trace didn't hit any client at all.
+		// Use a small hull trace to be more forgiving — the egg model is wider than the 20x20 hitbox.
+		if (d_projectileGhoul2Collision.integer && !traceEnt->client)
 		{
-			gentity_t	*tempEnt;
-			trace_t		trTemp;
-			
-			trap->Trace( &trTemp, start, NULL, NULL, end, ignore, MASK_SHOT, qfalse, 0, 0 );
-
-			tempEnt = &g_entities[trTemp.entityNum];
-			if (tempEnt->s.number < MAX_CLIENTS)
+			trace_t trFallback;
+			static vec3_t shotMins = {-6, -6, -6};
+			static vec3_t shotMaxs = {6, 6, 6};
+			trap->Trace(&trFallback, start, shotMins, shotMaxs, end, ignore, MASK_SHOT, qfalse, 0, 0);
+			gentity_t *fbEnt = &g_entities[trFallback.entityNum];
+			if (fbEnt->client && fbEnt->client->sess.sessionTeam == TEAM_RED)
 			{
-				if (tempEnt->client->sess.sessionTeam == TEAM_RED)
-				{
-					traceEnt = tempEnt;
-					tr = trTemp;
-				}
+				traceEnt = fbEnt;
+				tr = trFallback;
 			}
-		}//TM edit end
+		}
 
 		if (d_projectileGhoul2Collision.integer && traceEnt->inuse && traceEnt->client)
 		{ //g2 collision checks -rww
@@ -821,7 +820,7 @@ void WP_DisruptorAltFire( gentity_t *ent )
 			VectorCopy( tr.endpos, start );
 			skip = tr.entityNum;
 #ifdef _DEBUG
-			trap->Print( "BAD! Disruptor gun shot somehow traced back and hit the owner!\n" );
+			trap->Print( "BAD! Disruptor gun shot somehow traced back and hit the owner!\n" );			
 #endif
 			continue;
 		}
@@ -1109,12 +1108,12 @@ static void WP_BowcasterMainFire( gentity_t *ent )
 	for (i = 0; i < count; i++ )
 	{
 		// create a range of different velocities
-		vel = BOWCASTER_VELOCITY * ( Q_flrand(-1.0f, 1.0f) * BOWCASTER_VEL_RANGE + 1.0f );
+		vel = BOWCASTER_VELOCITY * ( crandom() * BOWCASTER_VEL_RANGE + 1.0f );
 
 		vectoangles( forward, angs );
 
 		// add some slop to the alt-fire direction
-		angs[PITCH] += Q_flrand(-1.0f, 1.0f) * BOWCASTER_ALT_SPREAD * 0.2f;
+		angs[PITCH] += crandom() * BOWCASTER_ALT_SPREAD * 0.2f;
 		angs[YAW]	+= ((i+0.5f) * BOWCASTER_ALT_SPREAD - count * 0.5f * BOWCASTER_ALT_SPREAD );
 
 		AngleVectors( angs, dir, NULL, NULL );
@@ -1230,8 +1229,8 @@ static void WP_FireRepeater( gentity_t *ent, qboolean altFire )
 	else
 	{
 		// add some slop to the alt-fire direction
-		angs[PITCH] += Q_flrand(-1.0f, 1.0f) * REPEATER_SPREAD;
-		angs[YAW]	+= Q_flrand(-1.0f, 1.0f) * REPEATER_SPREAD;
+		angs[PITCH] += crandom() * REPEATER_SPREAD;
+		angs[YAW]	+= crandom() * REPEATER_SPREAD;
 
 		AngleVectors( angs, dir, NULL, NULL );
 
@@ -1549,8 +1548,8 @@ static void WP_FlechetteMainFire( gentity_t *ent )
 
 		if (i != 0)
 		{ //do nothing on the first shot, it will hit the crosshairs
-			angs[PITCH] += Q_flrand(-1.0f, 1.0f) * FLECHETTE_SPREAD;
-			angs[YAW]	+= Q_flrand(-1.0f, 1.0f) * FLECHETTE_SPREAD;
+			angs[PITCH] += crandom() * FLECHETTE_SPREAD;
+			angs[YAW]	+= crandom() * FLECHETTE_SPREAD;
 		}
 
 		AngleVectors( angs, fwd, NULL, NULL );
@@ -1669,7 +1668,7 @@ void WP_flechette_alt_blow( gentity_t *ent )
 static void WP_CreateFlechetteBouncyThing( vec3_t start, vec3_t fwd, gentity_t *self )
 //------------------------------------------------------------------------------
 {
-	gentity_t	*missile = CreateMissile( start, fwd, 700 + Q_flrand(0.0f, 1.0f) * 700, 1500 + Q_flrand(0.0f, 1.0f) * 2000, self, qtrue );
+	gentity_t	*missile = CreateMissile( start, fwd, 700 + random() * 700, 1500 + random() * 2000, self, qtrue );
 
 	missile->think = WP_flechette_alt_blow;
 
@@ -1723,8 +1722,8 @@ static void WP_FlechetteAltFire( gentity_t *self )
 	{
 		VectorCopy( angs, dir );
 
-		dir[PITCH] -= Q_flrand(0.0f, 1.0f) * 4 + 8; // make it fly upwards
-		dir[YAW] += Q_flrand(-1.0f, 1.0f) * 2;
+		dir[PITCH] -= random() * 4 + 8; // make it fly upwards
+		dir[YAW] += crandom() * 2;
 		AngleVectors( dir, fwd, NULL, NULL );
 
 		WP_CreateFlechetteBouncyThing( start, fwd, self );
@@ -1887,7 +1886,7 @@ void rocketThink( gentity_t *ent )
 		// add crazy drunkenness
 		for (i = 0; i < 3; i++ )
 		{
-			newdir[i] += Q_flrand(-1.0f, 1.0f) * ent->random * 0.25f;
+			newdir[i] += crandom() * ent->random * 0.25f;
 		}
 
 		// decay the randomness
@@ -2981,7 +2980,7 @@ void BlowDetpacks(gentity_t *ent)
 			{
 				VectorCopy( found->r.currentOrigin, found->s.origin );
 				found->think = DetPackBlow;
-				found->nextthink = level.time + 100 + Q_flrand(0.0f, 1.0f) * 200;
+				found->nextthink = level.time + 100 + random() * 200;
 				G_Sound( found, CHAN_BODY, G_SoundIndex("sound/weapons/detpack/warning.wav") );
 			}
 		}
@@ -3502,6 +3501,15 @@ void WP_FireMelee( gentity_t *ent, qboolean alt_fire )
 	vec3_t		mins, maxs, end;
 	vec3_t		muzzlePunch;
 
+	if (ent->client->sess.sessionTeam == TEAM_RED) //TarasciiMadness explode barrel
+	{
+		if (!alt_fire)
+		{
+			Tarascii_ExplodeBarrel(ent);
+		}
+		return;
+	}
+
 	if (ent->client && ent->client->ps.torsoAnim == BOTH_MELEE2)
 	{ //right
 		if (ent->client->ps.brokenLimbs & (1 << BROKENLIMB_RARM))
@@ -3537,8 +3545,6 @@ void WP_FireMelee( gentity_t *ent, qboolean alt_fire )
 	VectorScale( maxs, -1, mins );
 
 	trap->Trace ( &tr, muzzlePunch, mins, maxs, end, ent->s.number, MASK_SHOT, qfalse, 0, 0 );
-	
-	Tarascii_ExplodeBarrel(ent);
 
 	
 

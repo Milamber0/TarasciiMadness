@@ -6,7 +6,7 @@
 
 typedef struct tarasciiState_s
 {
-	qboolean AllowJoin; 
+	qboolean AllowJoin;
 	int startingBarrel;
 	int startTime;
 	int winlossDelay;
@@ -25,6 +25,12 @@ typedef struct tarasciiState_s
 	int sessionNumRounds;
 	int clientVersions[MAX_CLIENTS];
 	float clientVersionTimers[MAX_CLIENTS];
+	qboolean barrelHintShown[MAX_CLIENTS];
+	int debugForceTeam[MAX_CLIENTS]; // per-client: 0=off, 1=force barrel, 2=force human
+	int roundEndTime; // level.time when round was won, 0 = round in progress
+	qboolean survivorsWon; // true if survivors won (disables barrel suicide)
+	qboolean presentAtStart[MAX_CLIENTS]; // true for clients connected when round started
+
 }tarasciiState_t;
 
 typedef struct Vec3List_s
@@ -41,7 +47,9 @@ void Tarascii_BarrelPlacement();
 void Tarascii_Init(int levelTime);
 
 void Tarascii_WriteSessionData();
+void Tarascii_WriteClientSessionData(gclient_t* client);
 void Tarascii_ReadSessionData();
+void Tarascii_ReadClientSessionData(gclient_t* client);
 
 qboolean Tarascii_CanPlayerJoin();
 team_t Tarascii_GetTeam(gentity_t* ent);
@@ -53,7 +61,7 @@ void Tarascii_Disconnect(int clientNum);
 void Tarascii_ExitCheck();
 
 void Tarascii_BarrelNonSolid(int barrelNum);
-void Tarascii_BarrelBound(gentity_t* ent);
+void Tarascii_BarrelBound(gentity_t* ent, pmove_t* pmove);
 void Tarascii_RespawnBarrels();
 
 void Tarascii_ExplodeBarrel(gentity_t* ent);
@@ -62,3 +70,5 @@ void Tarascii_ResetEplodeClick(int clientNum);
 void Tarascii_ClientBegin(gentity_t* ent);
 void Tarascii_AddClientPluginVersion(int clientNum, int clientVersion);
 void Tarascii_PluginIdentify( gentity_t *ent );
+
+void Tarascii_ChangeModel(int mode);

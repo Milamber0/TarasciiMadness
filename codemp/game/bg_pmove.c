@@ -34,7 +34,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 	#include "g_local.h"
 #elif _CGAME
 	#include "cgame/cg_local.h"
-#elif UI_BUILD
+#elif _UI
 	#include "ui/ui_local.h"
 #endif
 
@@ -4462,11 +4462,20 @@ static void PM_CheckDuck (void)
 	{
 		if (pm->ps->clientNum < MAX_CLIENTS)
 		{
-			pm->mins[0] = -15;
-			pm->mins[1] = -15;
-
-			pm->maxs[0] = 15;
-			pm->maxs[1] = 15;
+			if (pm->ps->duelTime == 1) // TarasciiMadness: barrel player uses smaller box
+			{
+				pm->mins[0] = -10;
+				pm->mins[1] = -10;
+				pm->maxs[0] = 10;
+				pm->maxs[1] = 10;
+			}
+			else
+			{
+				pm->mins[0] = -15;
+				pm->mins[1] = -15;
+				pm->maxs[0] = 15;
+				pm->maxs[1] = 15;
+			}
 		}
 
 		if ( PM_CheckDualForwardJumpDuck() )
@@ -6663,6 +6672,7 @@ PM_Weapon
 Generates weapon events and modifes the weapon counter
 ==============
 */
+extern vmCvar_t		tm_reloadSpeed; //TarasciiMadness
 extern int PM_KickMoveForConditions(void);
 static void PM_Weapon( void )
 {
@@ -7656,7 +7666,9 @@ static void PM_Weapon( void )
 		else if (pm->ps->weapon == WP_DISRUPTOR && pm->ps->zoomMode != 1)
 		{
 			PM_AddEvent( EV_FIRE_WEAPON );
-			addTime = weaponData[pm->ps->weapon].fireTime;
+			addTime = tm_reloadSpeed.integer;
+			if (pm->ps->userInt3 == 1 && addTime > 1)
+				addTime /= 2;
 		}
 		else
 		{
@@ -7674,7 +7686,17 @@ static void PM_Weapon( void )
 		{ //do not fire melee events at all when on vehicle
 			PM_AddEvent( EV_FIRE_WEAPON );
 		}
-		addTime = weaponData[pm->ps->weapon].fireTime;
+		if (pm->ps->weapon == WP_DISRUPTOR)//TarasciiMadness fire time
+		{
+			addTime = tm_reloadSpeed.integer;
+			// Double fire rate during survivor win celebration (userInt3 set as signal)
+			if (pm->ps->userInt3 == 1 && addTime > 1)
+				addTime /= 2;
+		}
+		else
+		{
+			addTime = weaponData[pm->ps->weapon].fireTime;
+		}
 		if ( pm->gametype == GT_SIEGE && pm->ps->weapon == WP_DET_PACK )
 		{	// were far too spammy before?  So says Rick.
 			addTime *= 2;

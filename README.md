@@ -32,6 +32,8 @@ The mod offers a new gametype based on the Team Free For All gametype in Jedi Ac
 * **tm_debugAllowJoin** defaults to 0 valid value 1. Allows you to join a game without having a minimum of 2 players. Will interfere with normal gameplay so should be turned off when not running tests.
 * **tm_barrelDensity** 1-100 valid values defaults to 25. This represents the percentage concentration of barrels on the map. If you feel the map has too many or too few barrels you can increase or decrease this number and restart the round using the default command map_restart. It's recommended to stay away from the higher percentages on smaller maps because a high concentration of barrels can be stressful for the game engine.
 * **tm_rounds** defaults to 5. This is how many rounds you play on the current map before moving on to the next map in the map cycle, if no map cycle has been added to the server it will repeat the same map.
+* **tm_reloadSpeed** defaults to 1500. This is reload speed in miliseconds, can be adjusted for balance in the gameplay.
+
 
 
 

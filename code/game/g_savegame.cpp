@@ -155,7 +155,6 @@ static const save_field_t savefields_gClient[] =
 	{NULL, 0, F_IGNORE}
 };
 
-// TODO FIXME mrwonko: this has no business being a global variable. WTF Raven?
 std::list<sstring_t> *strList = NULL;
 
 
@@ -483,7 +482,7 @@ static void EnumerateField(const save_field_t *pField, const byte *pbBase)
 		break;
 
 	case F_BOOLPTR:
-		*(qboolean *)pv = (qboolean)(*(int *)pv != 0);
+		*(qboolean *)pv = !!(*(int *)pv);
 		break;
 
 	// These are pointers that are always recreated
@@ -1248,7 +1247,7 @@ void ReadLevel(qboolean qbAutosave, qboolean qbLoadTransition)
 extern int killPlayerTimer;
 qboolean GameAllowedToSaveHere(void)
 {
-	return (qboolean)(!in_camera&&!killPlayerTimer);
+	return (!in_camera&&!killPlayerTimer);
 }
 
 //////////////////// eof /////////////////////

@@ -370,12 +370,6 @@ typedef struct uiImport_s {
 	void			(*G2API_GetSurfaceName)					( void *ghoul2, int surfNumber, int modelIndex, char *fillBuf );
 	qboolean		(*G2API_SetSkin)						( void *ghoul2, int modelIndex, qhandle_t customSkin, qhandle_t renderSkin );
 	qboolean		(*G2API_AttachG2Model)					( void *ghoul2From, int modelIndexFrom, void *ghoul2To, int toBoltIndex, int toModel );
-
-	struct {
-		float			(*R_Font_StrLenPixels)					( const char *text, const int iFontIndex, const float scale );
-		void			(*AddCommand)							( const char *cmd_name );
-		void			(*RemoveCommand)						( const char *cmd_name );
-	} ext;
 } uiImport_t;
 
 typedef struct uiExport_s {

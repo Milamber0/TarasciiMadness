@@ -30,6 +30,8 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include <vector>
 #include <map>
 
+using namespace std;
+
 typedef unsigned char byte;
 typedef unsigned short word;
 
@@ -281,7 +283,7 @@ protected:
 	char*			m_symbolName;
 };
 
-typedef std::map<const char *, CSymbol*, lessstr> symbolmap_t;
+typedef map<const char *, CSymbol*, lessstr> symbolmap_t;
 
 class CDirectiveSymbol : public CSymbol
 {

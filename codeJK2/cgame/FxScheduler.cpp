@@ -38,7 +38,6 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 #include "cg_media.h"
 
-#include "qcommon/safe/string.h"
 #include <cmath>
 
 
@@ -101,7 +100,7 @@ void CFxScheduler::Clean(bool bRemoveTemplates /*= true*/, int idToPreserve /*= 
 	while ( itr != mFxSchedule.end() )
 	{
 		next = itr;
-		++next;
+		next++;
 
 		delete *itr;
 		mFxSchedule.erase(itr);
@@ -169,7 +168,7 @@ void CFxScheduler::Clean(bool bRemoveTemplates /*= true*/, int idToPreserve /*= 
 // Return:
 //	int handle to the effect
 //------------------------------------------------------
-int CFxScheduler::RegisterEffect( const char *path, bool bHasCorrectPath /*= false*/ )
+int CFxScheduler::RegisterEffect( const char *file, bool bHasCorrectPath /*= false*/ )
 {
 	// Dealing with file names:
 	// File names can come from two places - the editor, in which case we should use the given
@@ -177,69 +176,93 @@ int CFxScheduler::RegisterEffect( const char *path, bool bHasCorrectPath /*= fal
 	// In either case we create a stripped file name to use for naming effects.
 	//
 
-	// FIXME: this could maybe be a cstring_view, if mEffectIDs were to use a transparent comparator, but those were only added in C++14, which we don't support yet (sigh)
-	char filenameNoExt[MAX_QPATH];
+	char sfile[MAX_QPATH];
 
 	// Get an extension stripped version of the file
 	if (bHasCorrectPath)
 	{
-		// FIXME: this is basically COM_SkipPath, except it also accepts '\\' instead of '/'
-		const char *last = path, *p = path;
+		const char *last = file, *p = file;
+
 		while (*p != '\0')
 		{
 			if ((*p == '/') || (*p == '\\'))
 			{
 				last = p + 1;
 			}
+
 			p++;
 		}
 
-		COM_StripExtension( last, filenameNoExt, sizeof( filenameNoExt ) );
+		COM_StripExtension( last, sfile, sizeof(sfile) );
 	}
 	else
 	{
-		COM_StripExtension( path, filenameNoExt, sizeof( filenameNoExt ) );
+		COM_StripExtension( file, sfile, sizeof(sfile) );
 	}
 
 	// see if the specified file is already registered.  If it is, just return the id of that file
 	TEffectID::iterator itr;
 
-	itr = mEffectIDs.find( filenameNoExt );
+	itr = mEffectIDs.find( sfile );
 
 	if ( itr != mEffectIDs.end() )
 	{
 		return (*itr).second;
 	}
 
-	char			correctFilenameBuffer[MAX_QPATH];
+	CGenericParser2	parser;
+	int				len = 0;
+	fileHandle_t	fh;
+	char			data[65536];
+	char			temp[MAX_QPATH];
 	const char		*pfile;
+	char			*bufParse = 0;
+
 	if (bHasCorrectPath)
 	{
-		pfile = path;
+		pfile = file;
 	}
 	else
 	{
 		// Add on our extension and prepend the file with the default path
-		Com_sprintf( correctFilenameBuffer, sizeof( correctFilenameBuffer ), "%s/%s.efx", FX_FILE_PATH, filenameNoExt );
-		pfile = correctFilenameBuffer;
+		sprintf( temp, "%s/%s.efx", FX_FILE_PATH, sfile );
+		pfile = temp;
 	}
 
-	// Let the generic parser process the whole file
-	CGenericParser2	parser;
-	if( !parser.Parse( pfile ) )
+	len = theFxHelper.OpenFile( pfile, &fh, FS_READ );
+
+	if ( len < 0 )
 	{
-		if( !parser.ValidFile() )
-		{
-			theFxHelper.Print( "RegisterEffect: INVALID file: %s\n", pfile );
-		}
-		return false;
-		if( parser.ValidFile() )
-		{
-			return false;
-		}
+		theFxHelper.Print( "Effect file load failed: %s\n", pfile );
+		return 0;
 	}
+
+	if (len == 0)
+	{
+		theFxHelper.Print( "INVALID Effect file: %s\n", pfile );
+		theFxHelper.CloseFile( fh );
+		return 0;
+	}
+
+	// If we'll overflow our buffer, bail out--not a particularly elegant solution
+	if (len >= (int)sizeof(data) - 1 )
+	{
+		theFxHelper.CloseFile( fh );
+		return 0;
+	}
+
+	// Get the goods and ensure Null termination
+	theFxHelper.ReadFile( data, len, fh );
+	data[len] = '\0';
+	bufParse = data;
+
+	// Let the generic parser process the whole file
+	parser.Parse( &bufParse );
+
+	theFxHelper.CloseFile( fh );
+
 	// Lets convert the effect file into something that we can work with
-	return ParseEffect( filenameNoExt, parser.GetBaseParseGroup() );
+	return ParseEffect( sfile, parser.GetBaseParseGroup() );
 }
 
 
@@ -257,10 +280,33 @@ int CFxScheduler::RegisterEffect( const char *path, bool bHasCorrectPath /*= fal
 //	int handle of the effect
 //------------------------------------------------------
 
-int CFxScheduler::ParseEffect( const char *file, const CGPGroup& base )
+struct primitiveType_s { const char *name; EPrimType type; } primitiveTypes[] = {
+	{ "particle", Particle },
+	{ "line", Line },
+	{ "tail", Tail },
+	{ "sound", Sound },
+	{ "cylinder", Cylinder },
+	{ "electricity", Electricity },
+	{ "emitter", Emitter },
+	{ "decal", Decal },
+	{ "orientedparticle", OrientedParticle },
+	{ "fxrunner", FxRunner },
+	{ "light", Light },
+	{ "cameraShake", CameraShake },
+	{ "flash", ScreenFlash },
+};
+static const size_t numPrimitiveTypes = ARRAY_LEN( primitiveTypes );
+
+int CFxScheduler::ParseEffect( const char *file, CGPGroup *base )
 {
-	int handle;
-	SEffectTemplate* effect = GetNewEffectTemplate( &handle, file );
+	CGPGroup			*primitiveGroup;
+	CPrimitiveTemplate	*prim;
+	const char			*grpName;
+	SEffectTemplate		*effect = 0;
+	EPrimType			type;
+	int					handle;
+
+	effect = GetNewEffectTemplate( &handle, file );
 
 	if ( !handle || !effect )
 	{
@@ -268,34 +314,32 @@ int CFxScheduler::ParseEffect( const char *file, const CGPGroup& base )
 		return 0;
 	}
 
-	for( const auto& primitiveGroup : base.GetSubGroups() )
-	{
-		static std::map< gsl::cstring_view, EPrimType, Q::CStringViewILess > primitiveTypes{
-			{ CSTRING_VIEW( "particle" ), Particle },
-			{ CSTRING_VIEW( "line" ), Line },
-			{ CSTRING_VIEW( "tail" ), Tail },
-			{ CSTRING_VIEW( "sound" ), Sound },
-			{ CSTRING_VIEW( "cylinder" ), Cylinder },
-			{ CSTRING_VIEW( "electricity" ), Electricity },
-			{ CSTRING_VIEW( "emitter" ), Emitter },
-			{ CSTRING_VIEW( "decal" ), Decal },
-			{ CSTRING_VIEW( "orientedparticle" ), OrientedParticle },
-			{ CSTRING_VIEW( "fxrunner" ), FxRunner },
-			{ CSTRING_VIEW( "light" ), Light },
-			{ CSTRING_VIEW( "cameraShake" ), CameraShake },
-			{ CSTRING_VIEW( "flash" ), ScreenFlash }
-		};
-		auto pos = primitiveTypes.find( primitiveGroup.GetName() );
-		if( pos != primitiveTypes.end() )
-		{
-			CPrimitiveTemplate *prim = new CPrimitiveTemplate;
+	primitiveGroup = base->GetSubGroups();
 
-			prim->mType = pos->second;
+	while ( primitiveGroup )
+	{
+		grpName = primitiveGroup->GetName();
+
+		type = None;
+		for ( size_t i=0; i<numPrimitiveTypes; i++ ) {
+			if ( !Q_stricmp( grpName, primitiveTypes[i].name ) ) {
+				type = primitiveTypes[i].type;
+				break;
+			}
+		}
+
+		if ( type != None )
+		{
+			prim = new CPrimitiveTemplate;
+
+			prim->mType = type;
 			prim->ParsePrimitive( primitiveGroup );
 
 			// Add our primitive template to the effect list
 			AddPrimitiveToEffect( effect, prim );
 		}
+
+		primitiveGroup = (CGPGroup *)primitiveGroup->GetNext();
 	}
 
 	return handle;
@@ -368,7 +412,7 @@ SEffectTemplate *CFxScheduler::GetNewEffectTemplate( int *id, const char *file )
 
 	theFxHelper.Print( "FxScheduler:  Error--reached max effects\n" );
 	*id = 0;
-	return nullptr;
+	return 0;
 }
 
 //------------------------------------------------------
@@ -694,7 +738,7 @@ void CFxScheduler::CreateEffect( CPrimitiveTemplate *fx, int clientID, int delay
 	// handle RGB color
 	if ( fx->mSpawnFlags & FX_RGB_COMPONENT_INTERP )
 	{
-		float perc = Q_flrand(0.0f, 1.0f);
+		float perc = random();
 
 		VectorSet( sRGB, fx->mRedStart.GetVal( perc ), fx->mGreenStart.GetVal( perc ), fx->mBlueStart.GetVal( perc ) );
 		VectorSet( eRGB, fx->mRedEnd.GetVal( perc ), fx->mGreenEnd.GetVal( perc ), fx->mBlueEnd.GetVal( perc ) );
@@ -1066,14 +1110,14 @@ void CFxScheduler::AddScheduledEffects( void )
 	vec3_t						origin;
 	vec3_t						axis[3];
 	int							oldEntNum = -1, oldBoltIndex = -1, oldModelNum = -1;
-	qboolean					doesBoltExist  = qfalse;
+	qboolean					doesBoltExist  = false;
 
 	itr = mFxSchedule.begin();
 
 	while ( itr != mFxSchedule.end() )
 	{
 		next = itr;
-		++next;
+		next++;
 
 		if ( *(*itr) <= theFxHelper.mTime )
 		{
@@ -1175,7 +1219,7 @@ void CFxScheduler::AddScheduledEffects( void )
 // Return:
 //	none
 //------------------------------------------------------
-void CFxScheduler::CreateEffect( CPrimitiveTemplate *fx, const vec3_t origin, vec3_t axis[3], int lateTime )
+void CFxScheduler::CreateEffect( CPrimitiveTemplate *fx, vec3_t origin, vec3_t axis[3], int lateTime )
 {
 	vec3_t	org, org2, temp,
 				vel, accel,
@@ -1190,7 +1234,7 @@ void CFxScheduler::CreateEffect( CPrimitiveTemplate *fx, const vec3_t origin, ve
 
 	if( fx->mSpawnFlags & FX_RAND_ROT_AROUND_FWD )
 	{
-		RotatePointAroundVector( ax[1], ax[0], axis[1], Q_flrand(0.0f, 1.0f)*360.0f );
+		RotatePointAroundVector( ax[1], ax[0], axis[1], random()*360.0f );
 		CrossProduct( ax[0], ax[1], ax[2] );
 	}
 
@@ -1217,8 +1261,8 @@ void CFxScheduler::CreateEffect( CPrimitiveTemplate *fx, const vec3_t origin, ve
 		float x, y;
 		float width, height;
 
-		x = DEG2RAD( Q_flrand(0.0f, 1.0f) * 360.0f );
-		y = DEG2RAD( Q_flrand(0.0f, 1.0f) * 180.0f );
+		x = DEG2RAD( random() * 360.0f );
+		y = DEG2RAD( random() * 180.0f );
 
 		width = fx->mRadius.GetVal();
 		height = fx->mHeight.GetVal();
@@ -1240,8 +1284,8 @@ void CFxScheduler::CreateEffect( CPrimitiveTemplate *fx, const vec3_t origin, ve
 
 		// set up our point, then rotate around the current direction to.  Make unrotated cylinder centered around 0,0,0
 		VectorScale( ax[1], fx->mRadius.GetVal(), pt );
-		VectorMA( pt, Q_flrand(-1.0f, 1.0f) * 0.5f * fx->mHeight.GetVal(), ax[0], pt );
-		RotatePointAroundVector( temp, ax[0], pt, Q_flrand(0.0f, 1.0f) * 360.0f );
+		VectorMA( pt, crandom() * 0.5f * fx->mHeight.GetVal(), ax[0], pt );
+		RotatePointAroundVector( temp, ax[0], pt, random() * 360.0f );
 
 		VectorAdd( org, temp, org );
 
@@ -1381,7 +1425,7 @@ void CFxScheduler::CreateEffect( CPrimitiveTemplate *fx, const vec3_t origin, ve
 	{
 		if ( fx->mSpawnFlags & FX_RGB_COMPONENT_INTERP )
 		{
-			float perc = Q_flrand(0.0f, 1.0f);
+			float perc = random();
 
 			VectorSet( sRGB, fx->mRedStart.GetVal( perc ), fx->mGreenStart.GetVal( perc ), fx->mBlueStart.GetVal( perc ) );
 			VectorSet( eRGB, fx->mRedEnd.GetVal( perc ), fx->mGreenEnd.GetVal( perc ), fx->mBlueEnd.GetVal( perc ) );

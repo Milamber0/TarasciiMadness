@@ -31,7 +31,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 	#include "g_local.h"
 #elif _CGAME
 	#include "cgame/cg_local.h"
-#elif UI_BUILD
+#elif _UI
 	#include "ui/ui_local.h"
 #endif
 
@@ -39,7 +39,7 @@ extern stringID_table_t animTable [MAX_ANIMATIONS+1];
 
 // These buffers are filled in with the same contents and then just read from in
 // a few places. We only need one copy on Xbox.
-#define MAX_VEH_WEAPON_DATA_SIZE 0x40000 // 0x4000
+#define MAX_VEH_WEAPON_DATA_SIZE 0x40000 // 0x4000	//TarasciiMadness vehicle limit fix.
 #define MAX_VEHICLE_DATA_SIZE 0x100000 // 0x10000
 
 char	VehWeaponParms[MAX_VEH_WEAPON_DATA_SIZE];
@@ -125,9 +125,15 @@ vehField_t vehWeaponFields[] =
 
 static const size_t numVehWeaponFields = ARRAY_LEN( vehWeaponFields );
 
-int vfieldcmp( const void *a, const void *b )
+static vehField_t *FindVehWeaponParm( const char *parmName )
 {
-	return Q_stricmp( (const char *)a, ((vehField_t*)b)->name );
+	size_t i;
+	for ( i = 0; i<numVehWeaponFields; i++ )
+	{
+		if ( vehWeaponFields[i].name && !Q_stricmp( vehWeaponFields[i].name, parmName ) )
+			return &vehWeaponFields[i];
+	}
+	return NULL;
 }
 
 static qboolean BG_ParseVehWeaponParm( vehWeaponInfo_t *vehWeapon, const char *parmName, char *pValue )
@@ -142,7 +148,7 @@ static qboolean BG_ParseVehWeaponParm( vehWeaponInfo_t *vehWeapon, const char *p
 	Q_strncpyz( value, pValue, sizeof(value) );
 
 	// Loop through possible parameters
-	vehWeaponField = (vehField_t *)Q_LinearSearch( parmName, vehWeaponFields, numVehWeaponFields, sizeof( vehWeaponFields[0] ), vfieldcmp );
+	vehWeaponField = FindVehWeaponParm( parmName );
 
 	if ( !vehWeaponField )
 		return qfalse;
@@ -221,14 +227,14 @@ static qboolean BG_ParseVehWeaponParm( vehWeaponInfo_t *vehWeapon, const char *p
 #endif
 		break;
 	case VF_SHADER:	// (cgame only) take the string, call trap_R_RegisterShader
-#ifdef UI_BUILD
+#ifdef _UI
 		*(int *)(b+vehWeaponField->ofs) = trap->R_RegisterShaderNoMip( value );
 #elif CGAME
 		*(int *)(b+vehWeaponField->ofs) = trap->R_RegisterShader( value );
 #endif
 		break;
 	case VF_SHADER_NOMIP:// (cgame only) take the string, call trap_R_RegisterShaderNoMip
-#if defined(_CGAME) || defined(UI_BUILD)
+#if defined(_CGAME) || defined(_UI)
 		*(int *)(b+vehWeaponField->ofs) = trap->R_RegisterShaderNoMip( value );
 #endif
 		break;
@@ -250,7 +256,7 @@ static qboolean BG_ParseVehWeaponParm( vehWeaponInfo_t *vehWeapon, const char *p
 		//Unknown type?
 		return qfalse;
 	}
-
+	
 	return qtrue;
 }
 
@@ -764,6 +770,17 @@ void BG_VehicleClampData( vehicleInfo_t *vehicle )
 	}
 }
 
+static vehField_t *FindVehicleParm( const char *parmName )
+{
+	size_t i;
+	for ( i = 0; i<numVehicleFields; i++ )
+	{
+		if ( vehicleFields[i].name && !Q_stricmp( vehicleFields[i].name, parmName ) )
+			return &vehicleFields[i];
+	}
+	return NULL;
+}
+
 static qboolean BG_ParseVehicleParm( vehicleInfo_t *vehicle, const char *parmName, char *pValue )
 {
 	vehField_t *vehField;
@@ -776,7 +793,7 @@ static qboolean BG_ParseVehicleParm( vehicleInfo_t *vehicle, const char *parmNam
 	Q_strncpyz( value, pValue, sizeof(value) );
 
 	// Loop through possible parameters
-	vehField = (vehField_t *)Q_LinearSearch( parmName, vehicleFields, numVehicleFields, sizeof( vehicleFields[0] ), vfieldcmp );
+	vehField = FindVehicleParm( parmName );
 
 	if ( !vehField )
 		return qfalse;
@@ -857,14 +874,14 @@ static qboolean BG_ParseVehicleParm( vehicleInfo_t *vehicle, const char *parmNam
 #endif
 		break;
 	case VF_SHADER:	// (cgame only) take the string, call trap_R_RegisterShader
-#ifdef UI_BUILD
+#ifdef _UI
 		*(int *)(b+vehField->ofs) = trap->R_RegisterShaderNoMip( value );
 #elif _CGAME
 		*(int *)(b+vehField->ofs) = trap->R_RegisterShader( value );
 #endif
 		break;
 	case VF_SHADER_NOMIP:// (cgame only) take the string, call trap_R_RegisterShaderNoMip
-#if defined(_CGAME) || defined(UI_BUILD)
+#if defined(_CGAME) || defined(_UI)
 		*(int *)(b+vehField->ofs) = trap->R_RegisterShaderNoMip( value );
 #endif
 		break;
@@ -1172,7 +1189,7 @@ int VEH_LoadVehicle( const char *vehicleName )
 		#endif
 	}
 
-	#if defined(_CGAME) || defined(UI_BUILD)
+	#if defined(_CGAME) || defined(_UI)
 		if ( VALIDSTRING( vehicle->skin ) )
 			trap->R_RegisterSkin( va( "models/players/%s/model_%s.skin", vehicle->model, vehicle->skin) );
 	#endif

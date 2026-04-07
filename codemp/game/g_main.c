@@ -30,6 +30,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "b_local.h"
 #include "g_tarascii_main.h"
 
+
 level_locals_t	level;
 
 int		eventClearTime = 0;
@@ -431,6 +432,7 @@ void G_InitGame( int levelTime, int randomSeed, int restart ) {
 	}
 	//TarasciiMadness - Spawn Barrels.
 	Tarascii_BarrelPlacement();
+	Tarascii_ChangeModel(tm_barrelModelMode.integer);
 }
 
 
@@ -991,6 +993,14 @@ int QDECL SortRanks( const void *a, const void *b ) {
 		return -1;
 	}
 
+#ifdef TARASCIIMADNESS
+	// TarasciiMadness: group by team (RED/barrels first) then by score within team
+	if (ca->sess.sessionTeam != cb->sess.sessionTeam) {
+		if (ca->sess.sessionTeam == TEAM_RED) return -1;
+		if (cb->sess.sessionTeam == TEAM_RED) return 1;
+	}
+#endif
+
 	// then sort by score
 	if ( ca->ps.persistant[PERS_SCORE]
 		> cb->ps.persistant[PERS_SCORE] ) {
@@ -1340,6 +1350,8 @@ void BeginIntermission( void ) {
 	if ( level.intermissiontime ) {
 		return;		// already active
 	}
+
+	// Barrel pick moved to RunFrame when AllowJoin triggers — all players are connected then
 
 	// if in tournament mode, change the wins / losses
 	if ( level.gametype == GT_DUEL || level.gametype == GT_POWERDUEL ) {
@@ -1990,6 +2002,9 @@ void CheckExitRules( void ) {
 	*/
 
 	// check for sudden death
+#ifdef TARASCIIMADNESS
+	// TarasciiMadness: no sudden death — survivors win if time runs out
+#else
 	if (level.gametype != GT_SIEGE)
 	{
 		if ( ScoreIsTied() ) {
@@ -2003,12 +2018,34 @@ void CheckExitRules( void ) {
 			}
 		}
 	}
+#endif
 
 	if (level.gametype != GT_SIEGE)
 	{
 		if ( timelimit.value > 0.0f && !level.warmupTime ) {
 			if ( level.time - level.startTime >= timelimit.value*60000 ) {
-//				trap->SendServerCommand( -1, "print \"Timelimit hit.\n\"");
+#ifdef TARASCIIMADNESS
+				// If survivors remain when time runs out, they win
+				if (level.gametype == GT_TEAM && g_tState.humanTeamCounter > 0 && !g_tState.roundEndTime) {
+					trap->SendServerCommand( -1, va("cp \"^2Survivors win!\n%d survivor%s remaining.\"", g_tState.humanTeamCounter, g_tState.humanTeamCounter == 1 ? "" : "s"));
+					g_tState.roundEndTime = level.time + 10000;
+					g_tState.survivorsWon = qtrue;
+					return;
+				}
+				if (g_tState.roundEndTime && level.time >= g_tState.roundEndTime) {
+					LogExit( "Survivors win." );
+					return;
+				}
+				if (g_tState.roundEndTime) {
+					// Re-send win message every 3 seconds so it stays visible
+					static int lastSurvMsg = 0;
+					if (level.time - lastSurvMsg >= 3000) {
+						trap->SendServerCommand( -1, va("cp \"^2Survivors win!\n%d survivor%s remaining.\"", g_tState.humanTeamCounter, g_tState.humanTeamCounter == 1 ? "" : "s"));
+						lastSurvMsg = level.time;
+					}
+					return; // waiting for celebration delay
+				}
+#endif
 				trap->SendServerCommand( -1, va("print \"%s.\n\"",G_GetStringEdString("MP_SVGAME", "TIMELIMIT_HIT")));
 				if (d_powerDuelPrint.integer)
 				{
@@ -3066,7 +3103,6 @@ void G_RunFrame( int levelTime ) {
 
 	// get any cvar changes
 	G_UpdateCvars();
-
 
 
 #ifdef _G_FRAME_PERFANAL

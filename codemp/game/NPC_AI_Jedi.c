@@ -822,6 +822,9 @@ void Jedi_Cloak( gentity_t *self )
 
 void Jedi_Decloak( gentity_t *self )
 {
+	//TarasciiMadness sabotage the decloak function so that no matter what it can't be turned off.
+	return;
+
 	if ( self )
 	{
 		self->flags &= ~FL_NOTARGET;
@@ -4026,7 +4029,7 @@ static void Jedi_CombatTimersUpdate( int enemy_dist )
 		}
 		else if ( NPCS.NPC->client->ps.fd.forceRageRecoveryTime > level.time )
 		{//recovering
-			Jedi_Aggression( NPCS.NPC, Q_irand( -2, 0 ) );
+			Jedi_Aggression( NPCS.NPC, Q_irand( 0, -2 ) );
 		}
 		if ( NPCS.NPC->enemy && NPCS.NPC->enemy->client )
 		{

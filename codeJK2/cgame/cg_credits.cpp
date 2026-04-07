@@ -42,7 +42,7 @@ vec4_t gv4Color = {0};
 struct StringAndSize_t
 {
 	int iStrLenPixels;
-	std::string str;
+	string str;
 
 	StringAndSize_t()
 	{
@@ -86,7 +86,7 @@ struct CreditCard_t
 {
 	int						iTime;
 	StringAndSize_t			strTitle;
-	std::vector<StringAndSize_t> vstrText;
+	vector<StringAndSize_t> vstrText;
 
 	CreditCard_t()
 	{
@@ -98,12 +98,12 @@ struct CreditLine_t
 {
 	int						iLine;
 	StringAndSize_t			strText;
-	std::vector<StringAndSize_t> vstrText;
+	vector<StringAndSize_t> vstrText;
 	bool					bDotted;
 };
 
-typedef std::list <CreditLine_t>		CreditLines_t;
-typedef std::list <CreditCard_t>		CreditCards_t;
+typedef list <CreditLine_t>		CreditLines_t;
+typedef list <CreditCard_t>		CreditCards_t;
 
 struct CreditData_t
 {
@@ -112,9 +112,9 @@ struct CreditData_t
 	CreditCards_t CreditCards;
 	CreditLines_t CreditLines;
 
-	qboolean Running(void)
+	bool Running(void)
 	{
-		return (qboolean)(CreditCards.size() || CreditLines.size());
+		return !!( CreditCards.size() || CreditLines.size() );
 	}
 };
 
@@ -182,7 +182,7 @@ static const char *UpperCaseFirstLettersOnly( const char *psTest )
 	return sTemp;
 }
 
-static const char *GetSubString(std::string &strResult)
+static const char *GetSubString(string &strResult)
 {
 	static char sTemp[MAX_LINE_BYTES];
 
@@ -406,7 +406,7 @@ void CG_Credits_Init( const char *psStripReference, vec4_t *pv4Color )
 									CreditLine.iLine	= iLineNumber;
 									CreditLine.bDotted	= true;
 
-					std::string strResult(sLine);
+					string strResult(sLine);
 					const char *p;
 					while ((p=GetSubString(strResult)) != NULL)
 					{
@@ -449,7 +449,7 @@ void CG_Credits_Init( const char *psStripReference, vec4_t *pv4Color )
 				{
 					CreditCard_t CreditCard;
 	
-					std::string strResult(sLine);
+					string strResult(sLine);
 					const char *p;
 					while ((p=GetSubString(strResult)) != NULL)
 					{
