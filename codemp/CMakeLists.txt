@@ -738,6 +738,7 @@ set(GameLibFullPaths)
 endif()
 
 # TarasciiMadness: build tarascii_assets.pk3 from checked-in assets
+include(InstallZIP)
 add_zip_command(tarascii_assets.pk3
 	FILES ${CMAKE_SOURCE_DIR}/assets/tarascii/*)
 add_custom_target(TarasciiAssets

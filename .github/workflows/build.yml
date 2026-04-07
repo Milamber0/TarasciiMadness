@@ -32,6 +32,7 @@ jobs:
             -DBuildMPGame=OFF `
             -DBuildMPUI=OFF `
             -DBuildMPCGame=ON `
+            -DBuildMPRdVanilla=OFF `
             -DBuildSPEngine=OFF `
             -DBuildSPGame=OFF `
             -DBuildSPRdVanilla=OFF `
@@ -93,6 +94,7 @@ jobs:
             -DBuildMPGame=OFF
             -DBuildMPUI=OFF
             -DBuildMPCGame=ON
+            -DBuildMPRdVanilla=OFF
             -DBuildSPEngine=OFF
             -DBuildSPGame=OFF
             -DBuildSPRdVanilla=OFF
@@ -153,6 +155,7 @@ jobs:
             -DBuildMPGame=OFF \
             -DBuildMPUI=OFF \
             -DBuildMPCGame=ON \
+            -DBuildMPRdVanilla=OFF \
             -DBuildSPEngine=OFF \
             -DBuildSPGame=OFF \
             -DBuildSPRdVanilla=OFF \
