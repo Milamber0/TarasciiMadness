@@ -739,8 +739,11 @@ endif()
 
 # TarasciiMadness: build tarascii_assets.pk3 from checked-in assets
 include(InstallZIP)
-add_zip_command(tarascii_assets.pk3
-	FILES ${CMAKE_SOURCE_DIR}/assets/tarascii/*)
+file(GLOB_RECURSE TarasciiAssetFiles RELATIVE "${CMAKE_SOURCE_DIR}/assets/tarascii" "${CMAKE_SOURCE_DIR}/assets/tarascii/*")
+add_custom_command(OUTPUT tarascii_assets.pk3
+	COMMAND ${CMAKE_COMMAND} -E tar cf "${CMAKE_CURRENT_BINARY_DIR}/tarascii_assets.pk3" --format=zip ${TarasciiAssetFiles}
+	WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/assets/tarascii"
+	COMMENT "Creating tarascii_assets.pk3")
 add_custom_target(TarasciiAssets
 	ALL
 	DEPENDS tarascii_assets.pk3)

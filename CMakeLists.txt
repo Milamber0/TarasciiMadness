@@ -200,6 +200,7 @@ elseif (("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU") OR ("${CMAKE_C_COMPILER_ID}" S
 		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-comment")
 		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fvisibility=hidden")
 		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsigned-char")
+		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fcommon")
 		if (X86)
 			# "x86 vm will crash without -mstackrealign since MMX
 			# instructions will be used no matter what and they
