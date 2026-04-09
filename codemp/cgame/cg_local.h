@@ -1537,6 +1537,7 @@ typedef struct cgs_s {
 	float			screenXScale;		// derived from glconfig
 	float			screenYScale;
 	float			screenXBias;
+	float			widthRatioCoef;		// widescreen 2D correction factor
 
 	int				serverCommandSequence;	// reliable command stream counter
 	int				processedSnapshotNum;// the number of snapshots cgame has requested

@@ -787,11 +787,15 @@ void CG_AddViewWeapon( playerState_t *ps ) {
 	vec3_t		angles;
 	weaponInfo_t	*weapon;
 	float cgFov = cg_fovViewmodel.integer ? cg_fovViewmodel.value : cg_fov.value;
+	float fracDistFOV, fracWeapFOV;
+	const float baseAspect = 0.75f; // 3/4
+	const float aspect = (float)cgs.glconfig.vidWidth / (float)cgs.glconfig.vidHeight;
+	const float desiredFov = cgFov;
 
 	if (cgFov < 1)
 		cgFov = 1;
-	if (cgFov > 130)
-		cgFov = 130;
+	if (cgFov > 140)
+		cgFov = 140;
 
 	if ( ps->persistant[PERS_TEAM] == TEAM_SPECTATOR ) {
 		return;
@@ -848,9 +852,14 @@ void CG_AddViewWeapon( playerState_t *ps ) {
 
 	if ( cg_fovViewmodel.integer )
 	{
-		float fracDistFOV = tanf( cg.refdef.fov_x * ( M_PI/180 ) * 0.5f );
-		float fracWeapFOV = ( 1.0f / fracDistFOV ) * tanf( cgFov * ( M_PI/180 ) * 0.5f );
-		VectorScale( hand.axis[0], fracWeapFOV, hand.axis[0] );
+		if (cg_fovAspectAdjust.integer) {
+			cgFov = atan(tan(desiredFov*M_PI / 360.0f) * baseAspect*aspect)*360.0f / M_PI;
+		}
+		if (!cg.zoomed) {
+			fracDistFOV = tanf( cg.refdef.fov_x * ( M_PI/180 ) * 0.5f );
+			fracWeapFOV = ( 1.0f / fracDistFOV ) * tanf( cgFov * ( M_PI/180 ) * 0.5f );
+			VectorScale( hand.axis[0], fracWeapFOV, hand.axis[0] );
+		}
 	}
 
 	// map torso animations to weapon animations

@@ -1150,9 +1150,9 @@ static int CG_CalcFov( void ) {
 	{
 		cgFov = 1;
 	}
-	if (cgFov > 130)
+	if (cgFov > 140)
 	{
-		cgFov = 130;
+		cgFov = 140;
 	}
 
 	if ( cg.predictedPlayerState.pm_type == PM_INTERMISSION ) {
@@ -1778,6 +1778,14 @@ void CG_DrawSkyBoxPortal(const char *cstr)
 				fov_x = zoomFov + f * ( fov_x - zoomFov);
 			}
 		}
+	}
+
+	if ( cg_fovAspectAdjust.integer ) {
+		const float baseAspect = 0.75f; // 3/4
+		const float aspect = (float)cgs.glconfig.vidWidth / (float)cgs.glconfig.vidHeight;
+		const float desiredFov = fov_x;
+
+		fov_x = atan( tan( desiredFov*M_PI / 360.0f ) * baseAspect*aspect )*360.0f / M_PI;
 	}
 
 	x = cg.refdef.width / tan( fov_x / 360 * M_PI );

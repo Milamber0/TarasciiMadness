@@ -27,6 +27,8 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 // Cvar callbacks
 //
 
+extern void UI_Set2DRatio(void);
+
 static void CG_SVRunningChange( void ) {
 	cgs.localServer = sv_running.integer;
 }

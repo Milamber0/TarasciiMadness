@@ -489,6 +489,7 @@ typedef struct displayContextDef_s {
 
 
 const char *String_Alloc(const char *p);
+void UI_Set2DRatio(void);
 void String_Init();
 void String_Report();
 void Init_Display(displayContextDef_t *dc);
