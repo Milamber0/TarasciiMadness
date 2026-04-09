@@ -28,6 +28,13 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 #include "game/bg_saga.h"
 
+// Widescreen ratio helper: scale x position based on which side of screen it's on
+static inline float CG_RatioX(float x) {
+	if (x > SCREEN_WIDTH * 0.5f)
+		return SCREEN_WIDTH - (SCREEN_WIDTH - x) * cgs.widthRatioCoef;
+	return x * cgs.widthRatioCoef;
+}
+
 #include "ui/ui_shared.h"
 #include "ui/ui_public.h"
 
@@ -617,9 +624,9 @@ void CG_DrawHealth( menuDef_t *menuHUD )
 		trap->R_SetColor( calcColor);
 
 		CG_DrawPic(
-			focusItem->window.rect.x,
+			CG_RatioX(focusItem->window.rect.x),
 			focusItem->window.rect.y,
-			focusItem->window.rect.w,
+			focusItem->window.rect.w * cgs.widthRatioCoef,
 			focusItem->window.rect.h,
 			focusItem->window.background
 			);
@@ -635,11 +642,11 @@ void CG_DrawHealth( menuDef_t *menuHUD )
 		trap->R_SetColor( focusItem->window.foreColor );
 
 		CG_DrawNumField (
-			focusItem->window.rect.x,
+			CG_RatioX(focusItem->window.rect.x),
 			focusItem->window.rect.y,
 			3,
 			ps->stats[STAT_HEALTH],
-			focusItem->window.rect.w,
+			focusItem->window.rect.w * cgs.widthRatioCoef,
 			focusItem->window.rect.h,
 			NUM_FONT_SMALL,
 			qfalse);
@@ -704,9 +711,9 @@ void CG_DrawArmor( menuDef_t *menuHUD )
 			if (cg.HUDArmorFlag)
 			{
 				CG_DrawPic(
-					focusItem->window.rect.x,
+					CG_RatioX(focusItem->window.rect.x),
 					focusItem->window.rect.y,
-					focusItem->window.rect.w,
+					focusItem->window.rect.w * cgs.widthRatioCoef,
 					focusItem->window.rect.h,
 					focusItem->window.background
 					);
@@ -715,9 +722,9 @@ void CG_DrawArmor( menuDef_t *menuHUD )
 		else
 		{
 				CG_DrawPic(
-					focusItem->window.rect.x,
+					CG_RatioX(focusItem->window.rect.x),
 					focusItem->window.rect.y,
-					focusItem->window.rect.w,
+					focusItem->window.rect.w * cgs.widthRatioCoef,
 					focusItem->window.rect.h,
 					focusItem->window.background
 					);
@@ -734,11 +741,11 @@ void CG_DrawArmor( menuDef_t *menuHUD )
 		trap->R_SetColor( focusItem->window.foreColor );
 
 		CG_DrawNumField (
-			focusItem->window.rect.x,
+			CG_RatioX(focusItem->window.rect.x),
 			focusItem->window.rect.y,
 			3,
 			ps->stats[STAT_ARMOR],
-			focusItem->window.rect.w,
+			focusItem->window.rect.w * cgs.widthRatioCoef,
 			focusItem->window.rect.h,
 			NUM_FONT_SMALL,
 			qfalse);
@@ -819,9 +826,9 @@ static void CG_DrawSaberStyle( centity_t *cent, menuDef_t *menuHUD)
 			trap->R_SetColor( colorTable[CT_WHITE] );
 
 			CG_DrawPic(
-				focusItem->window.rect.x,
+				CG_RatioX(focusItem->window.rect.x),
 				focusItem->window.rect.y,
-				focusItem->window.rect.w,
+				focusItem->window.rect.w * cgs.widthRatioCoef,
 				focusItem->window.rect.h,
 				focusItem->window.background
 				);
@@ -838,9 +845,9 @@ static void CG_DrawSaberStyle( centity_t *cent, menuDef_t *menuHUD)
 			trap->R_SetColor( colorTable[CT_WHITE] );
 
 			CG_DrawPic(
-				focusItem->window.rect.x,
+				CG_RatioX(focusItem->window.rect.x),
 				focusItem->window.rect.y,
-				focusItem->window.rect.w,
+				focusItem->window.rect.w * cgs.widthRatioCoef,
 				focusItem->window.rect.h,
 				focusItem->window.background
 				);
@@ -855,9 +862,9 @@ static void CG_DrawSaberStyle( centity_t *cent, menuDef_t *menuHUD)
 			trap->R_SetColor( colorTable[CT_WHITE] );
 
 			CG_DrawPic(
-				focusItem->window.rect.x,
+				CG_RatioX(focusItem->window.rect.x),
 				focusItem->window.rect.y,
-				focusItem->window.rect.w,
+				focusItem->window.rect.w * cgs.widthRatioCoef,
 				focusItem->window.rect.h,
 				focusItem->window.background
 				);
@@ -921,7 +928,7 @@ static void CG_DrawAmmo( centity_t	*cent,menuDef_t *menuHUD)
 		trap->R_SetColor( colorTable[CT_YELLOW] );
 		if (focusItem)
 		{
-			CG_DrawProportionalString(focusItem->window.rect.x, focusItem->window.rect.y, "--", NUM_FONT_SMALL, focusItem->window.foreColor);
+			CG_DrawProportionalString(CG_RatioX(focusItem->window.rect.x), focusItem->window.rect.y, "--", NUM_FONT_SMALL, focusItem->window.foreColor);
 		}
 	}
 	else
@@ -969,11 +976,11 @@ static void CG_DrawAmmo( centity_t	*cent,menuDef_t *menuHUD)
 			value =ps->ammo[weaponData[cent->currentState.weapon].ammoIndex];
 
 			CG_DrawNumField (
-				focusItem->window.rect.x,
+				CG_RatioX(focusItem->window.rect.x),
 				focusItem->window.rect.y,
 				3,
 				value,
-				focusItem->window.rect.w,
+				focusItem->window.rect.w * cgs.widthRatioCoef,
 				focusItem->window.rect.h,
 				NUM_FONT_SMALL,
 				qfalse);
@@ -1007,9 +1014,9 @@ static void CG_DrawAmmo( centity_t	*cent,menuDef_t *menuHUD)
 		trap->R_SetColor( calcColor);
 
 		CG_DrawPic(
-			focusItem->window.rect.x,
+			CG_RatioX(focusItem->window.rect.x),
 			focusItem->window.rect.y,
-			focusItem->window.rect.w,
+			focusItem->window.rect.w * cgs.widthRatioCoef,
 			focusItem->window.rect.h,
 			focusItem->window.background
 			);
@@ -1117,9 +1124,9 @@ void CG_DrawForcePower( menuDef_t *menuHUD )
 		trap->R_SetColor( calcColor);
 
 		CG_DrawPic(
-			focusItem->window.rect.x,
+			CG_RatioX(focusItem->window.rect.x),
 			focusItem->window.rect.y,
-			focusItem->window.rect.w,
+			focusItem->window.rect.w * cgs.widthRatioCoef,
 			focusItem->window.rect.h,
 			focusItem->window.background
 			);
@@ -1142,11 +1149,11 @@ void CG_DrawForcePower( menuDef_t *menuHUD )
 		}
 
 		CG_DrawNumField (
-			focusItem->window.rect.x,
+			CG_RatioX(focusItem->window.rect.x),
 			focusItem->window.rect.y,
 			3,
 			cg.snap->ps.fd.forcePower,
-			focusItem->window.rect.w,
+			focusItem->window.rect.w * cgs.widthRatioCoef,
 			focusItem->window.rect.h,
 			NUM_FONT_SMALL,
 			qfalse);
@@ -1368,9 +1375,9 @@ void CG_DrawHUD(centity_t	*cent)
 			{
 				trap->R_SetColor( colorTable[CT_WHITE] );
 				CG_DrawPic(
-					focusItem->window.rect.x,
+					CG_RatioX(focusItem->window.rect.x),
 					focusItem->window.rect.y,
-					focusItem->window.rect.w,
+					focusItem->window.rect.w * cgs.widthRatioCoef,
 					focusItem->window.rect.h,
 					focusItem->window.background
 					);
@@ -1382,9 +1389,9 @@ void CG_DrawHUD(centity_t	*cent)
 			{
 				trap->R_SetColor( colorTable[CT_WHITE] );
 				CG_DrawPic(
-					focusItem->window.rect.x,
+					CG_RatioX(focusItem->window.rect.x),
 					focusItem->window.rect.y,
-					focusItem->window.rect.w,
+					focusItem->window.rect.w * cgs.widthRatioCoef,
 					focusItem->window.rect.h,
 					focusItem->window.background
 					);
@@ -1448,7 +1455,7 @@ void CG_DrawHUD(centity_t	*cent)
 				if (focusItem)
 				{
 					CG_DrawScaledProportionalString(
-						focusItem->window.rect.x,
+						CG_RatioX(focusItem->window.rect.x),
 						focusItem->window.rect.y,
 						scoreStr,
 						UI_RIGHT|UI_DROPSHADOW,
@@ -1463,9 +1470,9 @@ void CG_DrawHUD(centity_t	*cent)
 			{
 				trap->R_SetColor( colorTable[CT_WHITE] );
 				CG_DrawPic(
-					focusItem->window.rect.x,
+					CG_RatioX(focusItem->window.rect.x),
 					focusItem->window.rect.y,
-					focusItem->window.rect.w,
+					focusItem->window.rect.w * cgs.widthRatioCoef,
 					focusItem->window.rect.h,
 					focusItem->window.background
 					);
@@ -1476,9 +1483,9 @@ void CG_DrawHUD(centity_t	*cent)
 			{
 				trap->R_SetColor( colorTable[CT_WHITE] );
 				CG_DrawPic(
-					focusItem->window.rect.x,
+					CG_RatioX(focusItem->window.rect.x),
 					focusItem->window.rect.y,
-					focusItem->window.rect.w,
+					focusItem->window.rect.w * cgs.widthRatioCoef,
 					focusItem->window.rect.h,
 					focusItem->window.background
 					);
@@ -3121,13 +3128,12 @@ CG_DrawSnapshot
 static float CG_DrawSnapshot( float y ) {
 	char		*s;
 	int			w;
-	int			xOffset = 0;
 
 	s = va( "time:%i snap:%i cmd:%i", cg.snap->serverTime,
 		cg.latestSnapshotNum, cgs.serverCommandSequence );
 	w = CG_DrawStrlen( s ) * BIGCHAR_WIDTH;
 
-	CG_DrawBigString( 635 - w + xOffset, y + 2, s, 1.0F);
+	CG_DrawBigString( SCREEN_WIDTH - 5 - w * cgs.widthRatioCoef, y + 2, s, 1.0F);
 
 	return y + BIGCHAR_HEIGHT + 4;
 }
@@ -3140,26 +3146,20 @@ CG_DrawFPS
 #define	FPS_FRAMES	16
 static float CG_DrawFPS( float y ) {
 	char		*s;
-	int			w;
-	static unsigned short previousTimes[FPS_FRAMES];
-	static unsigned short index;
-	static int	previous, lastupdate;
-	int		t, i, fps, total;
+	static unsigned short previousTimes[FPS_FRAMES], index;
+	static int	previous;
+	int		t, i, fps, total, w;
 	unsigned short frameTime;
-	const int		xOffset = 0;
-
+	int	drawFont = cg_drawFPS.integer;
 
 	// don't use serverTime, because that will be drifting to
 	// correct for internet lag changes, timescales, timedemos, etc
 	t = trap->Milliseconds();
 	frameTime = t - previous;
 	previous = t;
-	if (t - lastupdate > 50)	//don't sample faster than this
-	{
-		lastupdate = t;
-		previousTimes[index % FPS_FRAMES] = frameTime;
-		index++;
-	}
+
+	previousTimes[index % FPS_FRAMES] = frameTime;
+	index++;
 	// average multiple frames together to smooth changes out a bit
 	total = 0;
 	for ( i = 0 ; i < FPS_FRAMES ; i++ ) {
@@ -3171,9 +3171,38 @@ static float CG_DrawFPS( float y ) {
 	fps = 1000 * FPS_FRAMES / total;
 
 	s = va( "%ifps", fps );
-	w = CG_DrawStrlen( s ) * BIGCHAR_WIDTH;
 
-	CG_DrawBigString( 635 - w + xOffset, y + 2, s, 1.0F);
+	if (drawFont < 4 && trap->R_Language_IsAsian())
+		drawFont = 5;
+
+	switch (drawFont)
+	{
+		default:
+		case 1:
+			w = CG_DrawStrlen(s) * BIGCHAR_WIDTH;
+			CG_DrawBigString(SCREEN_WIDTH - 5 - w * cgs.widthRatioCoef, y + 2, s, 1.0f);
+			break;
+		case 2:
+			w = CG_DrawStrlen(s) * SMALLCHAR_WIDTH;
+			CG_DrawSmallString(SCREEN_WIDTH - 5 - w * cgs.widthRatioCoef, y + 2, s, 1.0f);
+			break;
+		case 3:
+			w = CG_DrawStrlen(s) * SMALLCHAR_WIDTH;
+			CG_DrawStringExt(SCREEN_WIDTH - 5 - w * cgs.widthRatioCoef, y + 2, s, colorWhite, qfalse, qtrue, SMALLCHAR_WIDTH * cgs.widthRatioCoef, SMALLCHAR_HEIGHT, 8);
+			break;
+		case 4:
+			w = CG_Text_Width(s, 1.0f, FONT_SMALL);
+			CG_Text_Paint(SCREEN_WIDTH - 5 - w, y, 1.0f, colorTable[CT_WHITE], s, 0.0f, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
+			return y + CG_Text_Height(s, 1.0f, FONT_SMALL);
+		case 5:
+			w = CG_Text_Width(s, 1.0f, FONT_MEDIUM);
+			CG_Text_Paint(SCREEN_WIDTH - 5 - w, y, 1.0f, colorTable[CT_WHITE], s, 0.0f, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_MEDIUM);
+			return y + CG_Text_Height(s, 1.0f, FONT_MEDIUM);
+		case 6:
+			w = CG_Text_Width(s, 1.0f, FONT_SMALL2);
+			CG_Text_Paint(SCREEN_WIDTH - 5 - w, y, 1.0f, colorTable[CT_WHITE], s, 0.0f, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL2);
+			return y + CG_Text_Height(s, 1.0f, FONT_SMALL2);
+	}
 
 	return y + BIGCHAR_HEIGHT + 4;
 }
@@ -3805,22 +3834,48 @@ CG_DrawTimer
 static float CG_DrawTimer( float y ) {
 	char		*s;
 	int			w;
-	int			mins, seconds, tens;
-	int			msec;
-	int			xOffset = 0;
+	int			msec, secs, mins;
+	int			drawTimerStyle = cg_drawFPS.integer ? cg_drawFPS.integer : cg_drawTimer.integer;
 
 	msec = cg.time - cgs.levelStartTime;
 
-	seconds = msec / 1000;
-	mins = seconds / 60;
-	seconds -= mins * 60;
-	tens = seconds / 10;
-	seconds -= tens * 10;
+	secs = msec / 1000;
+	mins = secs / 60;
+	secs %= 60;
 
-	s = va( "%i:%i%i", mins, tens, seconds );
-	w = CG_DrawStrlen( s ) * BIGCHAR_WIDTH;
+	s = va( "%i:%02i", mins, secs );
 
-	CG_DrawBigString( 635 - w + xOffset, y + 2, s, 1.0F);
+	if (drawTimerStyle < 4 && trap->R_Language_IsAsian())
+		drawTimerStyle = 5;
+
+	switch (drawTimerStyle)
+	{
+		default:
+		case 1:
+			w = CG_DrawStrlen(s) * BIGCHAR_WIDTH;
+			CG_DrawBigString(SCREEN_WIDTH - 5 - w * cgs.widthRatioCoef, y + 2, s, 1.0f);
+			break;
+		case 2:
+			w = CG_DrawStrlen(s) * SMALLCHAR_WIDTH;
+			CG_DrawSmallString(SCREEN_WIDTH - 5 - w * cgs.widthRatioCoef, y + 2, s, 1.0f);
+			break;
+		case 3:
+			w = CG_DrawStrlen(s) * SMALLCHAR_WIDTH;
+			CG_DrawStringExt(SCREEN_WIDTH - 5 - w * cgs.widthRatioCoef, y + 2, s, colorWhite, qfalse, qtrue, SMALLCHAR_WIDTH * cgs.widthRatioCoef, SMALLCHAR_HEIGHT, 0);
+			break;
+		case 4:
+			w = CG_Text_Width(s, 1.0f, FONT_SMALL);
+			CG_Text_Paint(SCREEN_WIDTH - 5 - w, y, 1.0f, colorTable[CT_WHITE], s, 0.0f, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
+			return y + CG_Text_Height(s, 1.0f, FONT_SMALL);
+		case 5:
+			w = CG_Text_Width(s, 1.0f, FONT_MEDIUM);
+			CG_Text_Paint(SCREEN_WIDTH - 5 - w, y, 1.0f, colorTable[CT_WHITE], s, 0.0f, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_MEDIUM);
+			return y + CG_Text_Height(s, 1.0f, FONT_MEDIUM);
+		case 6:
+			w = CG_Text_Width(s, 1.0f, FONT_SMALL2);
+			CG_Text_Paint(SCREEN_WIDTH - 5 - w, y, 1.0f, colorTable[CT_WHITE], s, 0.0f, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL2);
+			return y + CG_Text_Height(s, 1.0f, FONT_SMALL2);
+	}
 
 	return y + BIGCHAR_HEIGHT + 4;
 }
@@ -4295,11 +4350,13 @@ CG_DrawLagometer
 ==============
 */
 static void CG_DrawLagometer( void ) {
-	int		a, x, y, i;
-	float	v;
+	int		a, i;
+	float	x, y, v;
 	float	ax, ay, aw, ah, mid, range;
-	int		color;
 	float	vscale;
+	float	avgPing = 0.0f, avgInterp = 0.0f;
+	int		highestPing = 1;
+	int		color;
 
 	if ( !cg_lagometer.integer || cgs.localServer ) {
 		CG_DrawDisconnect();
@@ -4309,11 +4366,13 @@ static void CG_DrawLagometer( void ) {
 	//
 	// draw the graph
 	//
-	x = 640 - 48;
-	y = 480 - 144;
+	x = SCREEN_WIDTH - 48 * cgs.widthRatioCoef;
+	y = SCREEN_HEIGHT - 144;
 
 	trap->R_SetColor( NULL );
-	CG_DrawPic( x, y, 48, 48, cgs.media.lagometerShader );
+	if (cg_lagometer.integer < 3)
+		CG_DrawPic( x, y, 48 * cgs.widthRatioCoef, 48, cgs.media.lagometerShader );
+	x -= 1.0f * cgs.widthRatioCoef;
 
 	ax = x;
 	ay = y;
@@ -4326,10 +4385,11 @@ static void CG_DrawLagometer( void ) {
 
 	vscale = range / MAX_LAGOMETER_RANGE;
 
-	// draw the frame interpoalte / extrapolate graph
+	// draw the frame interpolate / extrapolate graph
 	for ( a = 0 ; a < aw ; a++ ) {
 		i = ( lagometer.frameCount - 1 - a ) & (LAG_SAMPLES - 1);
 		v = lagometer.frameSamples[i];
+		avgInterp += v;
 		v *= vscale;
 		if ( v > 0 ) {
 			if ( color != 1 ) {
@@ -4339,7 +4399,7 @@ static void CG_DrawLagometer( void ) {
 			if ( v > range ) {
 				v = range;
 			}
-			trap->R_DrawStretchPic ( ax + aw - a, mid - v, 1, v, 0, 0, 0, 0, cgs.media.whiteShader );
+			trap->R_DrawStretchPic ( ax + (aw - a) * cgs.widthRatioCoef, mid - v, 1.0f * cgs.widthRatioCoef, v, 0, 0, 0, 0, cgs.media.whiteShader );
 		} else if ( v < 0 ) {
 			if ( color != 2 ) {
 				color = 2;
@@ -4349,9 +4409,10 @@ static void CG_DrawLagometer( void ) {
 			if ( v > range ) {
 				v = range;
 			}
-			trap->R_DrawStretchPic( ax + aw - a, mid, 1, v, 0, 0, 0, 0, cgs.media.whiteShader );
+			trap->R_DrawStretchPic( ax + (aw - a) * cgs.widthRatioCoef, mid, 1.0f * cgs.widthRatioCoef, v, 0, 0, 0, 0, cgs.media.whiteShader );
 		}
 	}
+	avgInterp = (avgInterp / aw) * -1.0f;
 
 	// draw the snapshot latency / drop graph
 	range = ah / 2;
@@ -4360,7 +4421,10 @@ static void CG_DrawLagometer( void ) {
 	for ( a = 0 ; a < aw ; a++ ) {
 		i = ( lagometer.snapshotCount - 1 - a ) & (LAG_SAMPLES - 1);
 		v = lagometer.snapshotSamples[i];
+		if (v > highestPing)
+			highestPing = v;
 		if ( v > 0 ) {
+			avgPing += v;
 			if ( lagometer.snapshotFlags[i] & SNAPFLAG_RATE_DELAYED ) {
 				if ( color != 5 ) {
 					color = 5;	// YELLOW for rate delay
@@ -4372,24 +4436,41 @@ static void CG_DrawLagometer( void ) {
 					trap->R_SetColor( g_color_table[ColorIndex(COLOR_GREEN)] );
 				}
 			}
-			v = v * vscale;
+			v *= vscale;
 			if ( v > range ) {
 				v = range;
 			}
-			trap->R_DrawStretchPic( ax + aw - a, ay + ah - v, 1, v, 0, 0, 0, 0, cgs.media.whiteShader );
+			trap->R_DrawStretchPic( ax + (aw - a) * cgs.widthRatioCoef, ay + ah - v, 1.0f * cgs.widthRatioCoef, v, 0, 0, 0, 0, cgs.media.whiteShader );
 		} else if ( v < 0 ) {
+			avgPing += highestPing;
 			if ( color != 4 ) {
 				color = 4;		// RED for dropped snapshots
 				trap->R_SetColor( g_color_table[ColorIndex(COLOR_RED)] );
 			}
-			trap->R_DrawStretchPic( ax + aw - a, ay + ah - range, 1, range, 0, 0, 0, 0, cgs.media.whiteShader );
+			trap->R_DrawStretchPic( ax + (aw - a) * cgs.widthRatioCoef, ay + ah - range, 1.0f * cgs.widthRatioCoef, range, 0, 0, 0, 0, cgs.media.whiteShader );
 		}
 	}
+	avgPing /= aw;
 
 	trap->R_SetColor( NULL );
+	ay -= 1.0f;
 
 	if ( cg_noPredict.integer || g_synchronousClients.integer ) {
-		CG_DrawBigString( ax, ay, "snc", 1.0 );
+		CG_DrawBigString( ax + 1, ay - 2, "snc", 1.0 );
+		ay += BIGCHAR_HEIGHT - 1;
+	}
+
+	// cg_lagometer 2: graph + ping/interp text, cg_lagometer 3: text only
+	if (cg_lagometer.integer == 2 || cg_lagometer.integer == 3)
+	{
+		char *s = va("%.0f", avgPing);
+		float strW;
+
+		CG_Text_Paint(ax + (3.0f * cgs.widthRatioCoef), ay, 0.5f, colorWhite, s, 0, 0, ITEM_TEXTSTYLE_SHADOWEDMORE, FONT_SMALL);
+
+		s = va("%04.1f", avgInterp);
+		strW = CG_Text_Width(s, 0.5f, FONT_SMALL);
+		CG_Text_Paint(ax + (aw * cgs.widthRatioCoef) - strW, ay, 0.5f, colorWhite, s, 0, 0, ITEM_TEXTSTYLE_SHADOWEDMORE, FONT_SMALL);
 	}
 
 	CG_DrawDisconnect();
@@ -4543,7 +4624,7 @@ static void CG_DrawCenterString( void ) {
 
 		w = CG_Text_Width(linebuffer, scale, FONT_MEDIUM);
 		h = CG_Text_Height(linebuffer, scale, FONT_MEDIUM);
-		x = (SCREEN_WIDTH - w) / 2;
+		x = 0.5f * (SCREEN_WIDTH - SCREEN_WIDTH * cgs.widthRatioCoef) + (SCREEN_WIDTH * cgs.widthRatioCoef - w) / 2;
 		CG_Text_Paint(x, y + h, scale, color, linebuffer, 0, 0, ITEM_TEXTSTYLE_SHADOWEDMORE, FONT_MEDIUM);
 		y += h + 6;
 
@@ -5228,9 +5309,9 @@ static void CG_DrawCrosshair( vec3_t worldPoint, int chEntValid ) {
 		hShader = cgs.media.crosshairShader[ cg_drawCrosshair.integer % NUM_CROSSHAIRS ];
 	}
 
-	chX = x + cg.refdef.x + 0.5 * (640 - w);
-	chY = y + cg.refdef.y + 0.5 * (480 - h);
-	trap->R_DrawStretchPic( chX, chY, w, h, 0, 0, 1, 1, hShader );
+	chX = x + cg.refdef.x + 0.5 * (SCREEN_WIDTH - w * cgs.widthRatioCoef);
+	chY = y + cg.refdef.y + 0.5 * (SCREEN_HEIGHT - h);
+	trap->R_DrawStretchPic( chX, chY, w * cgs.widthRatioCoef, h, 0, 0, 1, 1, hShader );
 
 	//draw a health bar directly under the crosshair if we're looking at something
 	//that takes damage
@@ -7499,7 +7580,7 @@ static QINLINE void CG_ChatBox_DrawStrings(void)
 	int numToDraw = 0;
 	int linesToDraw = 0;
 	int i = 0;
-	int x = 30;
+	float x = 30 * cgs.widthRatioCoef;
 	float y = cg.scoreBoardShowing ? 475 : cg_chatBoxHeight.integer;
 	float fontScale = 0.65f;
 
@@ -8093,7 +8174,7 @@ static void CG_Draw2D( void ) {
 
 		// Timer centered
 		const char *timerStr;
-		int timerWidth, timerX;
+		float timerWidth, timerX;
 		vec4_t timerColor;
 
 		{
@@ -8124,15 +8205,20 @@ static void CG_Draw2D( void ) {
 				}
 			}
 		}
-		timerWidth = CG_DrawStrlen(timerStr) * 12;
-		timerX = 320 - timerWidth / 2;
-		CG_DrawStringExt(timerX, 28, timerStr, timerColor, qfalse, qtrue, 12, 16, -1);
+		{
+		float r = cgs.widthRatioCoef;
+		float xOff = 0.5f * (SCREEN_WIDTH - SCREEN_WIDTH * r);
+		float centerX = xOff + SCREEN_WIDTH * r * 0.5f;
+
+		timerWidth = CG_DrawStrlen(timerStr) * 12 * r;
+		timerX = centerX - timerWidth / 2;
+		CG_DrawStringExt(timerX, 28, timerStr, timerColor, qfalse, qtrue, 12 * r, 16, -1);
 
 		// Survivors on the left
 		const char *survStr = va("Survivors: %d", survivors);
-		int survWidth = CG_DrawStrlen(survStr) * 10;
+		int survWidth = CG_DrawStrlen(survStr) * 10 * r;
 		vec4_t survColor = {0.4f, 0.8f, 1.0f, 0.9f};
-		CG_DrawStringExt(timerX - survWidth - 12, 30, survStr, survColor, qfalse, qtrue, 10, 14, -1);
+		CG_DrawStringExt(timerX - survWidth - 12 * r, 30, survStr, survColor, qfalse, qtrue, 10 * r, 14, -1);
 
 		// Determine barrel/egg mode by checking any barrel entity's userInt2 flag
 		const char *barrelName = "Barrels";
@@ -8145,7 +8231,8 @@ static void CG_Draw2D( void ) {
 		}
 		const char *barrelStr = va("%s: %d", barrelName, barrels);
 		vec4_t barrelColor = {1.0f, 0.4f, 0.4f, 0.9f};
-		CG_DrawStringExt(timerX + timerWidth + 12, 30, barrelStr, barrelColor, qfalse, qtrue, 10, 14, -1);
+		CG_DrawStringExt(timerX + timerWidth + 12 * r, 30, barrelStr, barrelColor, qfalse, qtrue, 10 * r, 14, -1);
+		}
 	}
 
 
